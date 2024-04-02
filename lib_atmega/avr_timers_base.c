@@ -62,7 +62,7 @@ void set_comnc(volatile uint8_t *const tccrna, uint8_t com) {
 }
 
 uint8_t set_com8_base(uint8_t tccrna, uint8_t com) {
-    return	set_bit((tccrna & 0x0f), COMNA1, get_bit(com, 1)) |
+    return  set_bit((tccrna & 0x0f), COMNA1, get_bit(com, 1)) |
             set_bit((tccrna & 0x0f), COMNA0, get_bit(com, 0)) |
             set_bit((tccrna & 0x0f), COMNB1, get_bit(com, 1)) |
             set_bit((tccrna & 0x0f), COMNB0, get_bit(com, 0));
@@ -79,7 +79,7 @@ void set_comn16(volatile uint8_t *const tccrna, uint8_t com) {
 }
 
 uint8_t set_wgma_base(uint8_t tccrna, uint8_t wgm) {
-    return	set_bit((tccrna & 0xfc), WGMN1, get_bit(wgm, 1)) |
+    return  set_bit((tccrna & 0xfc), WGMN1, get_bit(wgm, 1)) |
             set_bit((tccrna & 0xfc), WGMN0, get_bit(wgm, 0));
 }
 
@@ -117,7 +117,7 @@ void set_prescalern(volatile uint8_t *const tccrnb, uint8_t n_presc) {
 //    -    |   -    | ICIE1  |   -    | OCIE1C | OCIE1B | OCIE1A | TOIE1
 
 uint8_t set_timsk_base(uint8_t timskn, uint8_t timsk) {
-    return 	set_bit((timskn & 0xf8), OCIENB, get_bit(timsk, 2)) |
+    return  set_bit((timskn & 0xf8), OCIENB, get_bit(timsk, 2)) |
             set_bit((timskn & 0xf8), OCIENA, get_bit(timsk, 1)) |
             set_bit((timskn & 0xf8), TOIEN,  get_bit(timsk, 0));
 }
