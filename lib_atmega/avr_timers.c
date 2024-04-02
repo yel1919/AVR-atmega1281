@@ -18,7 +18,7 @@ atom register_class(timer_class* pTmrClass) {
     atom at = get_timer_hash(pTmrClass->type);
     timer_class* tmrcls = get_class(at);
 
-    if(at != 0x00) {
+    if(tmrcls != NULL && at != 0x00) {
         if(tmrcls->type == None) {
             memcpy(tmrcls, pTmrClass, sizeof(timer_class));
             return at;
@@ -35,7 +35,7 @@ boolean unregister_timer_class(enum timer_type type) {
 h_timer create_timer(enum timer_type type, word out_port_a, word out_port_b, word out_port_c) {
     timer_class* tmrcls = get_class(get_timer_hash(type));
 
-    if(tmrcls->type != None) {
+    if(tmrcls != NULL && tmrcls->type != None) {
         h_timer htmr = (h_timer)malloc(sizeof(h_timer__));
         htmr->class = tmrcls;
 
