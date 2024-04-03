@@ -1,6 +1,8 @@
 #ifndef USER_AVR
 #define USER_AVR
 
+#define PN00		0x00
+
 #define PNA0 		0x10	//16
 #define PNA1 		0x11	//17
 #define PNA2 		0x12	//18

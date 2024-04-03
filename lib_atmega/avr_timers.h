@@ -8,8 +8,14 @@
 
 #define MAX_TIMER_ATOM 6
 
+enum timer_bit {
+    _0bit	= 0x00,
+    _8bit	= 0x01,
+    _16bit	= 0x02,
+};
+
 enum timer_type {
-    None 	= 0x00,
+    NoType 	= 0x00,
     Timer0 	= 0x01,
     Timer1 	= 0x02,
     Timer2 	= 0x03,
@@ -31,7 +37,7 @@ typedef h_timer__* h_timer;
 typedef void(*timer_event)(h_timer sender, uint8_t event);
 
 #pragma pack(push, 1)
-typedef struct timer_class {
+struct timer_class {
     timer_event handler;
     word com;
     word wgm;
@@ -41,13 +47,13 @@ typedef struct timer_class {
 } timer_class;
 #pragma pack(pop)
 
-extern atom register_class(timer_class* pTmrClass);
+extern atom register_class(struct timer_class* pTmrClass);
 extern boolean unregister_timer_class(enum timer_type type);
 
 extern h_timer create_timer(enum timer_type type, word out_port_a, word out_port_b, word out_port_c);
-extern void destroy_timer(h_timer htmr);
+extern boolean destroy_timer(h_timer htmr);
 
-extern void timer_start(h_timer htmr);
-extern void timer_stop(h_timer htmr);
+extern void timer_start(h_timer const htmr);
+extern void timer_stop(h_timer const htmr);
 
 #endif //!AVR_TIMERS
