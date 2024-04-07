@@ -1,10 +1,18 @@
 #include "avr_timers.h"
 
-struct timer_class atom_table[MAX_TIMER_ATOM];
-
-struct h_timer__ {
-    struct timer_class* class;
+#pragma pack(push, 1)
+struct private_h_timer__ {
+    struct private_timer_class* class;
+    struct private_h_timer__* next;
 };
+
+struct private_timer_class {
+    struct timer_class t_class;
+    struct private_h_timer__* p_timer_head;
+};
+#pragma pack(pop)
+
+struct private_timer_class atom_table[MAX_TIMER_ATOM];
 
 struct tmr_rgstrs {
     volatile uint8_t* tccrna;
@@ -28,11 +36,11 @@ struct tmr_rgstrs {
 };
 
 word get_timer_hash(word key) {
-    return ((word)(&(atom_table[0])) + (sizeof(struct timer_class) * (key - 1)));
+    return ((word)(&(atom_table[0])) + (sizeof(struct private_timer_class) * (key - 1)));
 }
 
-struct timer_class* get_class(word hash) {
-    return &(atom_table[0]) + (hash - (word)(&(atom_table[0]))) / sizeof(struct timer_class);
+struct private_timer_class* get_class(word hash) {
+    return &(atom_table[0]) + (hash - (word)(&(atom_table[0]))) / sizeof(struct private_timer_class);
 }
 
 struct tmr_rgstrs get_timer_registers(enum timer_type type) {
@@ -46,7 +54,7 @@ struct tmr_rgstrs get_timer_registers(enum timer_type type) {
             registers.tccrnb 	= &TCCR0B;
             registers.timskn 	= &TIMSK0;
 
-            registers.tcntn		= &TCNT0;
+            registers.tcntn     = &TCNT0;
             registers.ocrna 	= &OCR0A;
             registers.ocrnb 	= &OCR0B;
             break;
@@ -134,10 +142,11 @@ struct tmr_rgstrs get_timer_registers(enum timer_type type) {
 
 atom register_class(struct timer_class* pTmrClass) {
     atom at = get_timer_hash(pTmrClass->type);
-    struct timer_class* tmrcls = get_class(at);
+    struct private_timer_class* pr_tmr_cls = get_class(at);
 
-    if(tmrcls != NULL && tmrcls->type == NoType) {
-        memcpy(tmrcls, pTmrClass, sizeof(struct timer_class));
+    if(pr_tmr_cls != NULL && pr_tmr_cls->t_class.type == NoType) {
+        memcpy(pr_tmr_cls, pTmrClass, sizeof(struct timer_class));
+        pr_tmr_cls->p_timer_head = NULL;
         return at;
     }
 
@@ -145,10 +154,10 @@ atom register_class(struct timer_class* pTmrClass) {
 }
 
 boolean unregister_timer_class(enum timer_type type) {
-    struct timer_class* tmrcls = get_class(get_timer_hash(type));
+    struct private_timer_class* pr_tmr_cls = get_class(get_timer_hash(type));
 
-    if(tmrcls != NULL) {
-        memset(tmrcls, 0, sizeof(struct timer_class));
+    if(pr_tmr_cls != NULL && pr_tmr_cls->p_timer_head == NULL) {
+        memset(pr_tmr_cls, 0, sizeof(struct private_timer_class));
         return TRUE;
     }
 
@@ -156,22 +165,25 @@ boolean unregister_timer_class(enum timer_type type) {
 }
 
 h_timer create_timer(enum timer_type type, word out_port_a, word out_port_b, word out_port_c) {
-    struct timer_class* tmrcls = get_class(get_timer_hash(type));
+    struct private_timer_class* pr_tmr_cls = get_class(get_timer_hash(type));
 
-    if(tmrcls != NULL && tmrcls->type != NoType) {
-        struct tmr_rgstrs tmr_regs = get_timer_registers(tmrcls->type);
-        h_timer htmr = (h_timer)malloc(sizeof(h_timer__));
-        htmr->class = tmrcls;
+    //NoType свидетельствует о том, что класс таймера не зарегистрирован
+    //p_timer_head == NULL, может существовать только единственный экземпляр таймера
+    if(pr_tmr_cls != NULL && pr_tmr_cls->t_class.type != NoType && pr_tmr_cls->p_timer_head == NULL) {
+        struct tmr_rgstrs tmr_regs = get_timer_registers(pr_tmr_cls->t_class.type);
+        struct private_h_timer__* htmr = (struct private_h_timer__*)malloc(sizeof(struct private_h_timer__));
+        htmr->class = pr_tmr_cls;
+        pr_tmr_cls->p_timer_head = htmr;
 
         //зменить, а то любой порт можно указать
         set_mode(out_port_a, 1);
         set_mode(out_port_b, 1);
         set_mode(out_port_c, 1);
 
-        if(tmr_regs.tmrbit == _8bit) {
-            set_comn8(tmr_regs.tccrna, tmrcls->com);
-            set_wgmn8(tmr_regs.tccrna, tmr_regs.tccrnb, tmrcls->wgm);
-            set_timskn8(tmr_regs.timskn, tmrcls->timsk);
+            if(tmr_regs.tmrbit == _8bit) {
+            set_comn8(tmr_regs.tccrna, pr_tmr_cls->t_class.com);
+            set_wgmn8(tmr_regs.tccrna, tmr_regs.tccrnb, pr_tmr_cls->t_class.wgm);
+            set_timskn8(tmr_regs.timskn, pr_tmr_cls->t_class.timsk);
 
             set_comparen8x(tmr_regs.ocrna, 0);
             set_comparen8x(tmr_regs.ocrnb, 0);
@@ -179,9 +191,9 @@ h_timer create_timer(enum timer_type type, word out_port_a, word out_port_b, wor
             sei();
         }
         else if(tmr_regs.tmrbit == _16bit) {
-            set_comn16(tmr_regs.tccrna, tmrcls->com);
-            set_wgmn16(tmr_regs.tccrna, tmr_regs.tccrnb, tmrcls->wgm);
-            set_timskn16(tmr_regs.timskn, tmrcls->timsk);
+            set_comn16(tmr_regs.tccrna, pr_tmr_cls->t_class.com);
+            set_wgmn16(tmr_regs.tccrna, tmr_regs.tccrnb, pr_tmr_cls->t_class.wgm);
+            set_timskn16(tmr_regs.timskn, pr_tmr_cls->t_class.timsk);
 
             set_comparen16x(tmr_regs.ocrnah, tmr_regs.ocrnal, 0);
             set_comparen16x(tmr_regs.ocrnbh, tmr_regs.ocrnbl, 0);
@@ -191,11 +203,12 @@ h_timer create_timer(enum timer_type type, word out_port_a, word out_port_b, wor
         }
         else {
             htmr->class = NULL;
+            pr_tmr_cls->p_timer_head = NULL;
             free(htmr);
             htmr = NULL;
         }
 
-        return htmr;
+        return (h_timer)htmr;
     }
 
     return NULL;
@@ -204,6 +217,10 @@ h_timer create_timer(enum timer_type type, word out_port_a, word out_port_b, wor
 boolean destroy_timer(h_timer htmr) {
     if(htmr != NULL) {
         timer_stop(htmr);
+        struct private_h_timer__* pr_htmr = (struct private_h_timer__*)htmr;
+        if(pr_htmr->class != NULL)
+            pr_htmr->class->p_timer_head = NULL;
+
         free(htmr);
         return TRUE;
     }
@@ -211,15 +228,19 @@ boolean destroy_timer(h_timer htmr) {
 }
 
 void timer_start(h_timer const htmr) {
-    if(htmr != NULL && htmr->class != NULL) {
-        struct tmr_rgstrs tmr_regs = get_timer_registers(htmr->class->type);
-        set_prescalern(tmr_regs.tccrnb, htmr->class->presc);
+    struct private_h_timer__ *const pr_htmr = (struct private_h_timer__ *const)htmr;
+
+    if(pr_htmr != NULL && pr_htmr->class != NULL) {
+        struct tmr_rgstrs tmr_regs = get_timer_registers(pr_htmr->class->t_class.type);
+        set_prescalern(tmr_regs.tccrnb, pr_htmr->class->t_class.presc);
     }
 }
 
 void timer_stop(h_timer const htmr) {
-    if(htmr != NULL && htmr->class != NULL) {
-        struct tmr_rgstrs tmr_regs = get_timer_registers(htmr->class->type);
+    struct private_h_timer__ *const pr_htmr = (struct private_h_timer__ *const)htmr;
+
+    if(pr_htmr != NULL && pr_htmr->class != NULL) {
+        struct tmr_rgstrs tmr_regs = get_timer_registers(pr_htmr->class->t_class.type);
         set_prescalern(tmr_regs.tccrnb, 0x00);
         if(tmr_regs.tmrbit == _8bit)
             set_countern8(tmr_regs.tcntn, 0);

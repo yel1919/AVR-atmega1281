@@ -1,10 +1,10 @@
 #ifndef AVR_TIMERS
 #define AVR_TIMERS
 
-#include "avr_timers_base.h"
 #include <stdlib.h>
 #include <string.h>
-#include <avr/pgmspace.h>
+#include "avr_timers_base.h"
+#include "user_timers.h"
 
 #define MAX_TIMER_ATOM 6
 
@@ -34,7 +34,7 @@ enum event_type {
 typedef struct h_timer__ h_timer__;
 typedef h_timer__* h_timer;
 
-typedef void(*timer_event)(h_timer sender, uint8_t event);
+typedef void(*timer_event)(h_timer htmr, uint8_t event);
 
 #pragma pack(push, 1)
 struct timer_class {
@@ -44,7 +44,7 @@ struct timer_class {
     word presc;
     word timsk;
     enum timer_type type : 3;
-} timer_class;
+};
 #pragma pack(pop)
 
 extern atom register_class(struct timer_class* pTmrClass);
@@ -55,5 +55,8 @@ extern boolean destroy_timer(h_timer htmr);
 
 extern void timer_start(h_timer const htmr);
 extern void timer_stop(h_timer const htmr);
+
+extern void set_class_long(h_timer const htmr, uint8_t index, long new_long);
+extern void set_timer_dword(h_timer const htmr, uint8_t index, dword new_dword);
 
 #endif //!AVR_TIMERS
