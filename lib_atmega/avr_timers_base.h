@@ -29,14 +29,16 @@
 #define OCIENA	0x01
 #define TOIEN	0x00
 
-extern uint8_t get_comna(uint8_t tccrna);
-extern uint8_t get_comnb(uint8_t tccrna);
-extern uint8_t get_comnc(uint8_t tccrna);
+extern uint8_t get_comna(volatile const uint8_t *const tccrna);
+extern uint8_t get_comnb(volatile const uint8_t *const tccrna);
+extern uint8_t get_comnc(volatile const uint8_t *const tccrna);
+extern uint8_t get_com8(volatile const uint8_t *const tccrna);
+extern uint8_t get_com16(volatile const uint8_t *const tccrna);
 
-extern uint8_t get_wgm8(uint8_t tccrnb, uint8_t tccrna);
-extern uint8_t get_wgm16(uint8_t tccrnb, uint8_t tccrna);
+extern uint8_t get_wgm8(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna);
+extern uint8_t get_wgm16(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna);
 
-extern uint8_t get_prescaler(uint8_t tccrnb);
+extern uint8_t get_prescaler(volatile const uint8_t *const tccrnb);
 
 extern void set_comna(volatile uint8_t *const tccrna, uint8_t com);
 extern void set_comnb(volatile uint8_t *const tccrna, uint8_t com);

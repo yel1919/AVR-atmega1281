@@ -22,28 +22,36 @@
 // ICNC1 | ICES1 |   -   | WGM13 | WGM12 | CS12  | CS11  | CS10
 
 
-uint8_t get_comna(uint8_t tccrna) {
-    return (tccrna & 0xC0)>>6;                                  //0b11000000
+uint8_t get_comna(volatile const uint8_t *const tccrna) {
+    return ((*tccrna) & 0xC0) >> 6; 					//0b11000000
 }
 
-uint8_t get_comnb(uint8_t tccrna) {
-    return (tccrna & 0x30)>>4;                                  //0b00110000
+uint8_t get_comnb(volatile const uint8_t *const tccrna) {
+    return ((*tccrna) & 0x30) >> 4; 					//0b00110000
 }
 
-uint8_t get_comnc(uint8_t tccrna) {
-    return (tccrna & 0x0C)>>2;                                  //0b00001100
+uint8_t get_comnc(volatile const uint8_t *const tccrna) {
+    return ((*tccrna) & 0x0C) >> 2; 					//0b00001100
 }
 
-uint8_t get_wgm8(uint8_t tccrnb, uint8_t tccrna) {
-    return  ((tccrnb & 0x08)>>1) | (tccrna & 0x03);             //0b00001000 | 0b00000011
+uint8_t get_com8(volatile const uint8_t *const tccrna) {
+    return (((*tccrna) & 0xC0) | ((*tccrna) & 0x30)) >> 2;
 }
 
-uint8_t get_wgm16(uint8_t tccrnb, uint8_t tccrna) {
-    return  ((tccrnb & 0x10)>>1) | get_wgm8(tccrnb, tccrna); 	//0b00010000 | 0b00000111
+uint8_t get_com16(volatile const uint8_t *const tccrna) {
+    return get_com8(tccrna) | (((*tccrna) & 0x0C) >> 2);
 }
 
-uint8_t get_prescaler(uint8_t tccrnb) {
-    return tccrnb & 0x07;                                       //0b00000111
+uint8_t get_wgm8(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna) {
+    return  (((*tccrnb) & 0x08) >> 1) | ((*tccrna) & 0x03);			//0b00001000 | 0b00000011
+}
+
+uint8_t get_wgm16(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna) {
+    return  (((*tccrnb) & 0x10) >> 1) | get_wgm8(tccrnb, tccrna); 	//0b00010000 | 0b00000111
+}
+
+uint8_t get_prescaler(volatile const uint8_t *const tccrnb) {
+    return (*tccrnb) & 0x07; 						//0b00000111
 }
 
 void set_comna(volatile uint8_t *const tccrna, uint8_t com) {
@@ -62,10 +70,10 @@ void set_comnc(volatile uint8_t *const tccrna, uint8_t com) {
 }
 
 uint8_t set_com8_base(uint8_t tccrna, uint8_t com) {
-    return  set_bit((tccrna & 0x0f), COMNA1, get_bit(com, 1)) |
-            set_bit((tccrna & 0x0f), COMNA0, get_bit(com, 0)) |
-            set_bit((tccrna & 0x0f), COMNB1, get_bit(com, 1)) |
-            set_bit((tccrna & 0x0f), COMNB0, get_bit(com, 0));
+    return  set_bit((tccrna & 0x0f), COMNA1, get_bit(com, 5)) |
+            set_bit((tccrna & 0x0f), COMNA0, get_bit(com, 4)) |
+            set_bit((tccrna & 0x0f), COMNB1, get_bit(com, 3)) |
+            set_bit((tccrna & 0x0f), COMNB0, get_bit(com, 2));
 }
 
 void set_comn8(volatile uint8_t *const tccrna, uint8_t com) {
@@ -84,7 +92,7 @@ uint8_t set_wgma_base(uint8_t tccrna, uint8_t wgm) {
 }
 
 uint8_t set_wgmb_base(uint8_t tccrnb, uint8_t wgm) {
-    return	set_bit((tccrnb & 0xf7), WGMN2, get_bit(wgm, 2));
+    return  set_bit((tccrnb & 0xf7), WGMN2, get_bit(wgm, 2));
 }
 
 void set_wgmn8(volatile uint8_t *const tccrna, volatile uint8_t *const tccrnb, uint8_t wgm) {
