@@ -40,12 +40,12 @@ extern uint8_t get_wgm16(volatile const uint8_t *const tccrnb, volatile const ui
 
 extern uint8_t get_prescaler(volatile const uint8_t *const tccrnb);
 
-extern void set_comna(volatile uint8_t *const tccrna, uint8_t com);
-extern void set_comnb(volatile uint8_t *const tccrna, uint8_t com);
-extern void set_comnc(volatile uint8_t *const tccrna, uint8_t com);
+extern void set_comna(volatile uint8_t *const tccrna, uint8_t com_a);
+extern void set_comnb(volatile uint8_t *const tccrna, uint8_t com_b);
+extern void set_comnc(volatile uint8_t *const tccrna, uint8_t com_c);
 
-extern void set_comn8(volatile uint8_t *const tccrna, uint8_t com);
-extern void set_comn16(volatile uint8_t *const tccrna, uint8_t com);
+extern void set_comn8(volatile uint8_t *const tccrna, uint8_t com_abc);
+extern void set_comn16(volatile uint8_t *const tccrna, uint8_t com_abc);
 
 extern void set_wgmn8(volatile uint8_t *const tccrna, volatile uint8_t *const tccrnb, uint8_t wgm);
 extern void set_wgmn16(volatile uint8_t *const tccrna, volatile uint8_t *const tccrnb, uint8_t wgm);

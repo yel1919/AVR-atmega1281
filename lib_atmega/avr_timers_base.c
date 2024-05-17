@@ -35,7 +35,7 @@ uint8_t get_comnc(volatile const uint8_t *const tccrna) {
 }
 
 uint8_t get_com8(volatile const uint8_t *const tccrna) {
-    return (((*tccrna) & 0xC0) | ((*tccrna) & 0x30)) >> 2;
+    return ((*tccrna) & 0xF0) >> 2;
 }
 
 uint8_t get_com16(volatile const uint8_t *const tccrna) {

@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "avr_timers_base.h"
 #include "user_timers.h"
 
 #define MAX_TIMER_ATOM 6

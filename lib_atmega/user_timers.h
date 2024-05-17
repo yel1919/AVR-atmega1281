@@ -1,6 +1,8 @@
 #ifndef USER_TIMERS
 #define USER_TIMERS
 
+#include "avr_timers_base.h"
+
 //out ports
 #define NONE_OUT_PORT   0x00
 #define OUT_PORT0       0x01
@@ -84,5 +86,20 @@
 #define TT_OCIEC        0x000008
 #define ICIE            0x000010
 //
+
+extern uint8_t  ucomtocom(uint32_t mode);
+extern uint32_t comtoucom_3(uint8_t com_a, uint8_t com_b, uint8_t com_c);
+extern uint32_t comtoucom_1(uint8_t com_abc);
+
+extern uint8_t  uwgtowgm(uint32_t mode);
+extern uint32_t wgmtouwg8(uint8_t mode);
+extern uint32_t wgmtouwg16(uint8_t mode);
+
+extern uint8_t upresctopresc(uint32_t mode);
+extern uint32_t presctoupresc(uint8_t mode);
+
+extern uint8_t utimsktotimsk(uint32_t mode);
+extern uint32_t timsktoutimsk8(uint8_t mode);
+extern uint32_t timsktoutimsk16(uint8_t mode);
 
 #endif //!USER_TIMERS
