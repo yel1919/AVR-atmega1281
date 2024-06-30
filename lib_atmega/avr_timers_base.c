@@ -42,12 +42,12 @@ uint8_t get_com16(volatile const uint8_t *const tccrna) {
     return get_com8(tccrna) | (((*tccrna) & 0x0C) >> 2);
 }
 
-uint8_t get_wgm8(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna) {
+uint8_t get_wgmn8(volatile const uint8_t *const tccrna, volatile const uint8_t *const tccrnb) {
     return  (((*tccrnb) & 0x08) >> 1) | ((*tccrna) & 0x03);			//0b00001000 | 0b00000011
 }
 
-uint8_t get_wgm16(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna) {
-    return  (((*tccrnb) & 0x10) >> 1) | get_wgm8(tccrnb, tccrna); 	//0b00010000 | 0b00000111
+uint8_t get_wgmn16(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna) {
+    return  (((*tccrnb) & 0x10) >> 1) | get_wgmn8(tccrna, tccrnb); 	//0b00010000 | 0b00000111
 }
 
 uint8_t get_prescaler(volatile const uint8_t *const tccrnb) {
@@ -123,6 +123,9 @@ void set_prescalern(volatile uint8_t *const tccrnb, uint8_t n_presc) {
 //    7    |   6    |   5    |   4    |   3    |   2    |   1    |   0
 // --------|--------|--------|--------|--------|--------|--------|--------
 //    -    |   -    | ICIE1  |   -    | OCIE1C | OCIE1B | OCIE1A | TOIE1
+uint8_t get_timskn(volatile const uint8_t* const timskn) {
+    return (*timskn);
+}
 
 uint8_t set_timsk_base(uint8_t timskn, uint8_t timsk) {
     return  set_bit((timskn & 0xf8), OCIENB, get_bit(timsk, 2)) |
