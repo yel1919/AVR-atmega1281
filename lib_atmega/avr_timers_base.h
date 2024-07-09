@@ -29,39 +29,34 @@
 #define OCIENA	0x01
 #define TOIEN	0x00
 
-extern uint8_t get_comna(volatile const uint8_t* const tccrna);
-extern uint8_t get_comnb(volatile const uint8_t* const tccrna);
-extern uint8_t get_comnc(volatile const uint8_t* const tccrna);
-extern uint8_t get_com8(volatile const uint8_t* const tccrna);
-extern uint8_t get_com16(volatile const uint8_t* const tccrna);
+extern uint8_t  get_comna(volatile const uint8_t* const tccrna);
+extern uint8_t  get_comnb(volatile const uint8_t* const tccrna);
+extern uint8_t  get_comnc(volatile const uint8_t* const tccrna);
+extern uint8_t  get_com8(volatile const uint8_t* const tccrna);
+extern uint8_t  get_com16(volatile const uint8_t* const tccrna);
 
-extern uint8_t get_wgmn8(volatile const uint8_t* const tccrna, volatile const uint8_t* const tccrnb);
-extern uint8_t get_wgmn16(volatile const uint8_t* const tccrna, volatile const uint8_t* const tccrnb);
+extern uint8_t  get_wgmn8(volatile const uint8_t* const tccrna, volatile const uint8_t* const tccrnb);
+extern uint8_t  get_wgmn16(volatile const uint8_t* const tccrna, volatile const uint8_t* const tccrnb);
 
-extern uint8_t get_prescaler(volatile const uint8_t* const tccrnb);
+extern uint8_t  get_prescaler(volatile const uint8_t* const tccrnb);
 
-extern uint8_t get_timskn(volatile const uint8_t* const timskn);
+extern uint8_t  get_timskn(volatile const uint8_t* const timskn);
 
-extern void set_comna(volatile uint8_t* const tccrna, uint8_t com_a);
-extern void set_comnb(volatile uint8_t* const tccrna, uint8_t com_b);
-extern void set_comnc(volatile uint8_t* const tccrna, uint8_t com_c);
+extern void     set_comna(volatile uint8_t* const tccrna, uint8_t com_a);
+extern void     set_comnb(volatile uint8_t* const tccrna, uint8_t com_b);
+extern void     set_comnc(volatile uint8_t* const tccrna, uint8_t com_c);
 
-extern void set_comn8(volatile uint8_t* const tccrna, uint8_t com_abc);
-extern void set_comn16(volatile uint8_t* const tccrna, uint8_t com_abc);
+extern void     set_comn8(volatile uint8_t* const tccrna, uint8_t com_abc);
+extern void     set_comn16(volatile uint8_t* const tccrna, uint8_t com_abc);
 
-extern void set_wgmn8(volatile uint8_t* const tccrna, volatile uint8_t* const tccrnb, uint8_t wgm);
-extern void set_wgmn16(volatile uint8_t* const tccrna, volatile uint8_t* const tccrnb, uint8_t wgm);
+extern void     set_wgmn8(volatile uint8_t* const tccrna, volatile uint8_t* const tccrnb, uint8_t wgm);
+extern void     set_wgmn16(volatile uint8_t* const tccrna, volatile uint8_t* const tccrnb, uint8_t wgm);
 
-extern void set_prescalern(volatile uint8_t* const tccrnb, uint8_t n_presc);
+extern void     set_prescalern(volatile uint8_t* const tccrnb, uint8_t n_presc);
 
-extern void set_timskn8(volatile uint8_t* const timskn, uint8_t timsk);
-extern void set_timskn16(volatile uint8_t* const timskn, uint8_t timsk);
+extern void     set_timskn8(volatile uint8_t* const timskn, uint8_t timsk);
+extern void     set_timskn16(volatile uint8_t* const timskn, uint8_t timsk);
 
-extern void set_countern8(volatile uint8_t* const tcntn, uint8_t value);
-extern void set_comparen8x(volatile uint8_t* const ocrnx, uint8_t value);
-
-extern void set_countern16(volatile uint8_t* const tcntnh, volatile uint8_t* const tcntnl, uint16_t value);
-extern void set_comparen16x(volatile uint8_t* const ocrnaxh, volatile uint8_t* const ocrnaxl, uint16_t value);
-extern void set_capturen16(volatile uint8_t* const icrnh, volatile uint8_t* const icrnl, uint16_t value);
+extern void     set_registerx(volatile uint8_t* const rgstrh, volatile uint8_t* const rgstrl, uint16_t value);
 
 #endif //!TIMERS_AVR

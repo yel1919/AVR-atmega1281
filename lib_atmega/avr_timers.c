@@ -1,61 +1,29 @@
 #include "avr_timers.h"
 
 #pragma pack(push, 1)
-struct __tmrclss__ {
-    struct timer_class      stc_class;
-    struct __timer_base__*  ptmr_head;
-    struct __timer_base__*  ptmr_tail;
+struct __wg_mode__ {
+    uint16_t max_period;
+
+    uint8_t  (*to_prescaler)(uint16_t presc_value);
+    uint16_t (*calc_presc)(uint32_t freq, uint16_t top);
+    uint16_t (*calc_period)(uint32_t freq, uint16_t presc);
 };
 
 struct __timer_base__ {
     uint8_t                 timer_name;
     uint8_t                 class_name;
 
-    uint8_t                 out_porta;
-    uint8_t                 out_portb;
-
-    volatile uint8_t*       tccrna;
-    volatile uint8_t*       tccrnb;
-    volatile uint8_t*       timskn;
-
     uint8_t                 presc;
     boolean                 active;
 
-    struct __timer_base__*  next;
-    struct __timer_base__*  prev;
-};
+    timer_event             handler;
 
-struct __8bit_rgstr__ {
-    volatile uint8_t* lorgstr;
-};
-
-struct __16bit_rgstr__ {
-    volatile uint8_t* lorgstr;
-    volatile uint8_t* hirgstr;
-};
-
-struct __8bit_timer__ {
-    struct __timer_base__ base;
-
-    struct __8bit_rgstr__ tcntn;
-    struct __8bit_rgstr__ ocrna;
-    struct __8bit_rgstr__ ocrnb;
-};
-
-struct __16bit_timer__ {
-    struct __timer_base__   base;
-    uint8_t                 out_portc;
-    volatile uint8_t*       tccrnc;
-
-    struct __16bit_rgstr__  tcntn;
-    struct __16bit_rgstr__  ocrna;
-    struct __16bit_rgstr__  ocrnb;
-    struct __16bit_rgstr__  ocrnc;
-    struct __16bit_rgstr__  icrn;
+    struct __wg_mode__      mode;
 };
 #pragma pack(pop)
 
-struct __tmrclss__ tmrclss_table[MAX_TMR_CLSS];
+uint8_t to_prescaler(uint16_t value);
+uint8_t to_prescaler2(uint16_t value);
 
 #define TRM_TCCRA 0
 #define TRM_TCCRB 1
@@ -94,107 +62,41 @@ volatile uint8_t* tmrrgstrmap[6][14] = {
     { &TCCR5A, &TCCR5B, &TCCR5C, &TIMSK5, &TCNT5H, &TCNT5L, &OCR5AH, &OCR5AL, &OCR5BH, &OCR5BL, &OCR5CH, &OCR5CL, &ICR5H, &ICR5L }
 };
 
-struct __tmrclss__* get_class(uint8_t class_name) {
-    if(TCN_NONAME < class_name && class_name <= TCN_16BIT) {
-        return &tmrclss_table[class_name - 1];
-    }
-    return NULL;
-}
+typedef uint16_t (*calc_top_presc)(uint32_t freq, uint16_t top);
+calc_top_presc calcprescmap8[8] = {
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
 
-boolean register_class(struct timer_class* pTmrClass) {
-    if(pTmrClass != NULL) {
-        struct __tmrclss__* ptmr_clss = get_class(pTmrClass->uiClassName);
+calc_top_presc calcperiodmap8[8] = {
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
 
-        if(ptmr_clss != NULL && ptmr_clss->stc_class.uiClassName == TCN_NONAME) {
-            memcpy(ptmr_clss, pTmrClass, sizeof(struct timer_class));
-            ptmr_clss->ptmr_head = NULL;
-            ptmr_clss->ptmr_tail = NULL;
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
+calc_top_presc calcprescmap16[15] = {
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
 
-boolean unregister_timer_class(uint8_t tmrClassName) {
-    struct __tmrclss__* ptmr_clss = get_class(tmrClassName);
+calc_top_presc calcperiodmap16[15] = {
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
 
-    if(ptmr_clss != NULL && ptmr_clss->ptmr_head == NULL) {
-        memset(ptmr_clss, 0, sizeof(struct __tmrclss__));
-        return TRUE;
-    }
+typedef uint16_t (*to_presc)(uint32_t freq, uint16_t top);
+to_presc toprescmap[2] = {
+    &to_prescaler, &to_prescaler2
+};
 
-    return FALSE;
-}
+void* wgmfoomap[5] = { toprescmap, calcprescmap8, calcprescmap16, calcperiodmap8, calcperiodmap16 };
 
-h_timer find_timer(uint8_t tmrClassName, uint8_t tmrName) {
-    if((TCN_8BIT <= tmrClassName && tmrClassName <= TCN_16BIT) && (TN_NULL <= tmrName && tmrName <= TN_FIFTH)) {
-        struct __tmrclss__* ptmr_clss = get_class(tmrClassName);
-
-        if(ptmr_clss != NULL && ptmr_clss->stc_class.uiClassName != TCN_NONAME) {
-            struct __timer_base__* p_timer = ptmr_clss->ptmr_head;
-
-            while(p_timer != NULL) {
-                if(p_timer->timer_name == tmrName)
-                    return (h_timer)p_timer;
-                p_timer = p_timer->next;
-            }
-        }
-    }
-
-    return NULL;
-}
-
-void set_base_reg(struct __timer_base__* tmr, volatile uint8_t* const tccrna, volatile uint8_t* const tccrnb, volatile uint8_t* const timskn) {
-    if(tmr != NULL) {
-        tmr->tccrna = tccrna;
-        tmr->tccrnb = tccrnb;
-        tmr->timskn = timskn;
-    }
-}
-
-void set_16reg(struct __16bit_rgstr__* p16bit_reg, volatile uint8_t* const hireg, volatile uint8_t* const loreg) {
-    if(p16bit_reg != NULL) {
-        p16bit_reg->hirgstr = hireg;
-        p16bit_reg->lorgstr = loreg;
-    }
-}
-
-void set_registers(struct __timer_base__* const timer) {
-    if(timer != NULL && timer->class_name != TCN_NONAME && (TN_NONAME < timer->timer_name && timer->timer_name <= TN_FIFTH)) {
-        set_base_reg(timer, tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK]);
-        timer->out_porta = tmrpinmap[timer->timer_name - 1][TPM_PORTA];
-        timer->out_portb = tmrpinmap[timer->timer_name - 1][TPM_PORTB];
-
-        if(timer->class_name == TCN_8BIT) {
-            struct __8bit_timer__* tmr8 = (struct __8bit_timer__*)timer;
-
-            tmr8->tcntn.lorgstr = tmrrgstrmap[timer->timer_name - 1][TRM_TCNTL];
-            tmr8->ocrna.lorgstr = tmrrgstrmap[timer->timer_name - 1][TRM_OCRAL];
-            tmr8->ocrnb.lorgstr = tmrrgstrmap[timer->timer_name - 1][TRM_OCRBL];
-        }
-        else if(timer->class_name == TCN_16BIT) {
-            struct __16bit_timer__* tmr16 = (struct __16bit_timer__*)timer;
-
-            tmr16->out_portc = tmrpinmap[timer->timer_name - 1][TPM_PORTC];
-            tmr16->tccrnc = tmrrgstrmap[timer->timer_name - 1][TRM_TCCRC];
-            set_16reg(&tmr16->tcntn, tmrrgstrmap[timer->timer_name - 1][TRM_TCNTH], tmrrgstrmap[timer->timer_name - 1][TRM_TCNTL]);
-            set_16reg(&tmr16->ocrna, tmrrgstrmap[timer->timer_name - 1][TRM_OCRAH], tmrrgstrmap[timer->timer_name - 1][TRM_OCRAL]);
-            set_16reg(&tmr16->ocrnb, tmrrgstrmap[timer->timer_name - 1][TRM_OCRBH], tmrrgstrmap[timer->timer_name - 1][TRM_OCRBL]);
-            set_16reg(&tmr16->ocrnc, tmrrgstrmap[timer->timer_name - 1][TRM_OCRCH], tmrrgstrmap[timer->timer_name - 1][TRM_OCRCL]);
-            set_16reg(&tmr16->icrn,  tmrrgstrmap[timer->timer_name - 1][TRM_ICRH],  tmrrgstrmap[timer->timer_name - 1][TRM_ICRL]);
-        }
-    }
-}
+h_timer tmr_table[MAX_TMR];
 
 void outports_enable(h_timer const timer, uint8_t out_ports, boolean flag) {
     if(timer != NULL) {
         struct __timer_base__* tmr_base = (struct __timer_base__*)timer;
         if(out_ports & OUT_PORT0)
-            set_mode(tmr_base->out_porta, flag);
+            set_mode(tmrpinmap[tmr_base->timer_name - 1][TPM_PORTA], flag);
         if(out_ports & OUT_PORT1)
-            set_mode(tmr_base->out_portb, flag);
+            set_mode(tmrpinmap[tmr_base->timer_name - 1][TPM_PORTB], flag);
         if((out_ports & OUT_PORT2) && tmr_base->class_name == TCN_16BIT)
-            set_mode(((struct __16bit_timer__*)tmr_base)->out_portc, flag);
+            set_mode(tmrpinmap[tmr_base->timer_name - 1][TPM_PORTC], flag);
     }
 }
 
@@ -202,24 +104,55 @@ void set_presc(struct __timer_base__* const timer, uint8_t presc) {
     if(timer != NULL) {
         timer->presc = presc;
         if(timer->active)
-            set_prescalern(timer->tccrnb, presc);
+            set_prescalern(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], presc);
+    }
+}
+
+void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
+{
+    if(timer->timer_name == TN_SECOND)
+        timer->mode.to_prescaler   = *(to_presc*)&wgmfoomap[0][1];
+    else
+        timer->mode.to_prescaler   = *(to_presc*)&wgmfoomap[0][0];
+
+    if(timer->class_name == TCN_8BIT) {
+        set_wgmn8(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], wgm);
+
+        timer->mode.max_period      = 255;
+        timer->mode.calc_presc      = *(calc_top_presc*)&wgmfoomap[1][wgm];
+        timer->mode.calc_period     = *(calc_top_presc*)&wgmfoomap[3][wgm];
+    }
+    else if(timer->class_name == TCN_16BIT) {
+        set_wgmn16(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], wgm);
+
+        if(wgm == WT16_PHASE_0FF || wgm == WT16_FAST_0FF)
+            timer->mode.max_period = 255;
+        else if(wgm == WT16_PHASE_1FF || wgm == WT16_FAST_1FF)
+            timer->mode.max_period = 511;
+        else if(wgm == WT16_PHASE_3FF || wgm == WT16_FAST_3FF)
+            timer->mode.max_period = 1023;
+        else
+            timer->mode.max_period = 65535;
+
+        timer->mode.calc_presc     = *(calc_top_presc*)&wgmfoomap[2][wgm];
+        timer->mode.calc_period    = *(calc_top_presc*)&wgmfoomap[4][wgm];
     }
 }
 
 void set_timer_mode(struct __timer_base__* const timer, const struct timer_mode* const modes) {
     if(timer != NULL) {
-        set_comna(timer->tccrna, modes->coma);
-        set_comnb(timer->tccrna, modes->comb);
+        set_comna(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], modes->coma);
+        set_comnb(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], modes->comb);
+        set_wgmode(timer, modes->wgm);
 
         if(timer->class_name == TCN_8BIT) {
-            set_wgmn8(timer->tccrna, timer->tccrnb, modes->wgm);
-            set_timskn8(timer->timskn, modes->timsk);
+            set_timskn8(tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK], modes->timsk);
         }
         else if(timer->class_name == TCN_16BIT) {
-            set_comnc(timer->tccrna, modes->comc);
-            set_wgmn16(timer->tccrna, timer->tccrnb, modes->wgm);
-            set_timskn16(timer->timskn, modes->timsk);
+            set_comnc(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], modes->comc);
+            set_timskn16(tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK], modes->timsk);
         }
+
         set_presc(timer, modes->presc);
     }
 }
@@ -227,60 +160,47 @@ void set_timer_mode(struct __timer_base__* const timer, const struct timer_mode*
 struct timer_mode get_timer_mode(struct __timer_base__* const timer) {
     struct timer_mode modes;
     if(timer != NULL) {
-        modes.coma = get_comna(timer->tccrna);
-        modes.comb = get_comnb(timer->tccrna);
+        modes.coma = get_comna(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA]);
+        modes.comb = get_comnb(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA]);
+        modes.timsk = get_timskn(tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK]);
         modes.presc = timer->presc;
         if(timer->class_name == TCN_8BIT) {
-            modes.wgm   = get_wgmn8(timer->tccrna, timer->tccrnb);
-            modes.timsk = get_timskn(timer->timskn);
+            modes.wgm   = get_wgmn8(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB]);
         }
         else if(timer->class_name == TCN_16BIT) {
-            modes.comc  = get_comnc(timer->tccrna);
-            modes.wgm   = get_wgmn16(timer->tccrna, timer->tccrnb);
-            modes.timsk = get_timskn(timer->timskn);
+            modes.comc  = get_comnc(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA]);
+            modes.wgm   = get_wgmn16(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB]);
         }
     }
     return modes;
 }
 
-h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports) {
+h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports, timer_event handler) {
     if(
         (
             (class_name == TCN_8BIT && (timer_name == TN_NULL || timer_name == TN_SECOND)) ||
             (class_name == TCN_16BIT && (timer_name == TN_FIRST || (TN_THIRD <= timer_name && timer_name <= TN_FIFTH)))
         ) &&
-        find_timer(class_name, timer_name) == NULL
+        tmr_table[class_name - 1] == NULL
     ) {
-        struct __tmrclss__* ptmr_clss = get_class(class_name);
-        if(ptmr_clss != NULL && ptmr_clss->stc_class.uiClassName != TCN_NONAME) {
-            struct __timer_base__* tmr = NULL;
+        struct __timer_base__* tmr = NULL;
 
-            if(class_name == TCN_8BIT)
-                tmr = (struct __timer_base__*)malloc(sizeof(struct __8bit_timer__));
-            else if(class_name == TCN_16BIT)
-                tmr = (struct __timer_base__*)malloc(sizeof(struct __16bit_timer__));
+        tmr = (struct __timer_base__*)malloc(sizeof(struct __timer_base__));
 
-            if(tmr == NULL) return NULL;
+        if(tmr == NULL) return NULL;
 
-            tmr->timer_name = timer_name;
-            tmr->class_name = class_name;
-            tmr->active = FALSE;
-            set_registers(tmr);
-            outports_enable((h_timer)tmr, out_ports, TRUE);
-            set_timer_mode(tmr, modes);
+        tmr->timer_name = timer_name;
+        tmr->class_name = class_name;
+        tmr->active = FALSE;
+        tmr_table[tmr->class_name - 1] = (h_timer)tmr;
+        tmr->handler = handler;
 
-            if(ptmr_clss->ptmr_head == NULL)
-                ptmr_clss->ptmr_head = tmr;
-            if(ptmr_clss->ptmr_tail != NULL)
-                ptmr_clss->ptmr_tail->next = tmr;
+        outports_enable((h_timer)tmr, out_ports, TRUE);
+        set_timer_mode(tmr, modes);
 
-            tmr->prev = ptmr_clss->ptmr_tail;
-            ptmr_clss->ptmr_tail = tmr;
+        sei();
 
-            sei();
-
-            return (h_timer)tmr;
-        }
+        return tmr_table[tmr->class_name - 1];
     }
     return NULL;
 }
@@ -293,29 +213,16 @@ boolean destroy_timer(h_timer htmr) {
         struct timer_mode modes;
         memset(&modes, 0, sizeof(struct timer_mode));
         set_timer_mode(tmr, &modes);
-        if(tmr->class_name == TCN_8BIT) {
-            set_comparen8x(((struct __8bit_timer__*)tmr)->ocrna.lorgstr, 0);
-            set_comparen8x(((struct __8bit_timer__*)tmr)->ocrnb.lorgstr, 0);
-        }
-        else if(tmr->class_name == TCN_16BIT) {
-            struct __16bit_timer__* tmr16 = (struct __16bit_timer__*)tmr;
-            set_comparen16x(tmr16->ocrna.hirgstr, tmr16->ocrna.lorgstr, 0);
-            set_comparen16x(tmr16->ocrnb.hirgstr, tmr16->ocrnb.lorgstr, 0);
-            set_comparen16x(tmr16->ocrnc.hirgstr, tmr16->ocrnc.lorgstr, 0);
-            set_capturen16(tmr16->icrn.hirgstr, tmr16->icrn.lorgstr, 0);
+
+        set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAH], tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAL], 0);
+        set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRBH], tmrrgstrmap[tmr->timer_name - 1][TRM_OCRBL], 0);
+
+        if(tmr->class_name == TCN_16BIT) {
+            set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRCH], tmrrgstrmap[tmr->timer_name - 1][TRM_OCRCL], 0);
+            set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_ICRH],  tmrrgstrmap[tmr->timer_name - 1][TRM_ICRL],  0);
         }
 
-        struct __tmrclss__* ptmr_clss = get_class(tmr->class_name);
-        if(tmr->next == NULL)
-            ptmr_clss->ptmr_tail = tmr->prev;
-        else
-            tmr->next->prev = tmr->prev;
-
-        if(tmr->prev == NULL)
-            ptmr_clss->ptmr_head = tmr->next;
-        else
-            tmr->prev->next = tmr->next;
-
+        tmr_table[tmr->class_name - 1] = NULL;
         free(tmr);
         htmr = NULL;
 
@@ -328,7 +235,7 @@ void timer_start(h_timer const htmr) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
         tmr->active = TRUE;
-        set_prescalern(tmr->tccrnb, tmr->presc);
+        set_prescalern(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRB], tmr->presc);
     }
 }
 
@@ -336,15 +243,8 @@ void timer_stop(h_timer const htmr) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
         tmr->active = FALSE;
-        set_prescalern(tmr->tccrnb, 0);
-
-        if(tmr->class_name == TCN_8BIT) {
-            set_countern8(((struct __8bit_timer__*)tmr)->tcntn.lorgstr, 0);
-        }
-        else if(tmr->class_name == TCN_16BIT) {
-            struct __16bit_timer__* tmr16 = (struct __16bit_timer__*)tmr;
-            set_countern16(tmr16->tcntn.hirgstr, tmr16->tcntn.lorgstr, 0);
-        }
+        set_prescalern(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRB], 0);
+        set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_TCNTH], tmrrgstrmap[tmr->timer_name - 1][TRM_TCNTL], 0);
     }
 }
 
@@ -387,30 +287,21 @@ uint8_t to_prescaler2(uint16_t value) {
 void set_frequency(h_timer const htmr, uint16_t freq) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
-        uint8_t wgm = 0;
+
         uint16_t presc = 0;
         uint16_t xcrx = 0;
 
-        if(tmr->class_name == TCN_8BIT) {
-            wgm     = get_wgmn8(tmr->tccrna, tmr->tccrnb);
-            if(wgm == WT8_FAST_OCRA) {
-                presc   = to_prescaler(get_correctpwm(freq, 255));
-                xcrx    = get_correctpwm(freq, presc);
+        if(tmr->mode.calc_presc != NULL) {
+            presc = tmr->mode.to_prescaler(tmr->mode.calc_presc(freq, tmr->mode.max_period));
+            if(tmr->mode.calc_period != NULL);
+                xcrx = tmr->mode.calc_period(freq, presc);
 
-                set_comparen8x(((struct __8bit_timer__*)tmr)->ocrna.lorgstr, xcrx);
-            }
+            set_presc(tmr, presc);
+            if(tmr->mode.calc_period != NULL);
+                set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_ICRH], tmrrgstrmap[tmr->timer_name][TRM_ICRL], xcrx);
         }
-        else if(tmr->class_name == TCN_16BIT) {
-            wgm     = get_wgmn16(tmr->tccrna, tmr->tccrnb);
-            if(wgm == WT16_FAST_ICR) {
-                presc   = to_prescaler(get_correctpwm(freq, 255));
-                xcrx    = get_correctpwm(freq, presc);
-
-                set_presc(tmr, presc);
-                set_capturen16(((struct __16bit_timer__*)tmr)->icrn.hirgstr, ((struct __16bit_timer__*)tmr)->icrn.lorgstr, xcrx);
-            }
+        else {
+            set_presc(tmr, 0);
         }
-
-
     }
 }

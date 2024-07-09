@@ -46,8 +46,8 @@ uint8_t get_wgmn8(volatile const uint8_t *const tccrna, volatile const uint8_t *
     return  (((*tccrnb) & 0x08) >> 1) | ((*tccrna) & 0x03);			//0b00001000 | 0b00000011
 }
 
-uint8_t get_wgmn16(volatile const uint8_t *const tccrnb, volatile const uint8_t *const tccrna) {
-    return  (((*tccrnb) & 0x10) >> 1) | get_wgmn8(tccrna, tccrnb); 	//0b00010000 | 0b00000111
+uint8_t get_wgmn16(volatile const uint8_t *const tccrna, volatile const uint8_t *const tccrnb) {
+    return  (((*tccrnb) & 0x10) >> 1) | get_wgmn8(tccrna, tccrnb); 	//0b00010000 | 0b00001011
 }
 
 uint8_t get_prescaler(volatile const uint8_t *const tccrnb) {
@@ -143,25 +143,9 @@ void set_timskn16(volatile uint8_t *const timskn, uint8_t timsk) {
                 set_timsk_base(((*timskn) & 0xd0), timsk);
 }
 
-void set_countern8(volatile uint8_t *const tcntn, uint8_t value) {
-    (*tcntn) = value;
-}
-
-void set_comparen8x(volatile uint8_t *const ocrnx, uint8_t value) {
-    (*ocrnx) = value;
-}
-
-void set_countern16(volatile uint8_t *const tcntnh, volatile uint8_t *const tcntnl, uint16_t value) {
-    (*tcntnh) = (uint8_t)(value>>8);
-    (*tcntnl) = (uint8_t)(value);
-}
-
-void set_comparen16x(volatile uint8_t *const ocrnxh, volatile uint8_t *const ocrnxl, uint16_t value) {
-    (*ocrnxh) = (uint8_t)(value>>8);
-    (*ocrnxl) = (uint8_t)(value);
-}
-
-void set_capturen16(volatile uint8_t *const icrnh, volatile uint8_t *const icrnl, uint16_t value) {
-    (*icrnh) = (uint8_t)(value>>8);
-    (*icrnl) = (uint8_t)(value);
+void set_registerx(volatile uint8_t *const rgstrh, volatile uint8_t *const rgstrl, uint16_t value) {
+    if(rgstrh != NULL)
+        (*rgstrh) = (uint8_t)(value>>8);
+    if(rgstrl != NULL)
+        (*rgstrl) = (uint8_t)(value);
 }

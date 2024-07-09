@@ -6,7 +6,7 @@
 #include <math.h>
 #include "avr_timers_base.h"
 
-#define MAX_TMR_CLSS 2
+#define MAX_TMR 6
 
 //------------------
 // Timer class name
@@ -128,11 +128,6 @@ typedef h_timer__* h_timer;
 typedef void(*timer_event)(h_timer htmr, enum event_type event);
 
 #pragma pack(push, 1)
-struct timer_class {
-    timer_event handler;
-    uint8_t uiClassName : 8;
-};
-
 struct timer_mode {
     uint8_t coma    : 2,
             comb    : 2,
@@ -144,20 +139,16 @@ struct timer_mode {
 };
 #pragma pack(pop)
 
-extern boolean register_class(struct timer_class* pTmrClass);
-extern boolean unregister_timer_class(uint8_t tmrClassName);
+extern h_timer  create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports, timer_event handler);
+extern boolean  destroy_timer(h_timer htmr);
+extern void     outports_enable(h_timer const timer, uint8_t out_ports, boolean flag);
 
-extern h_timer find_timer(uint8_t tmrClassName, uint8_t tmrName);
-extern h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports);
-extern boolean destroy_timer(h_timer htmr);
-extern void    outports_enable(h_timer const timer, uint8_t out_ports, boolean flag);
+extern void     timer_start(h_timer const htmr);
+extern void     timer_stop(h_timer const htmr);
 
-extern void timer_start(h_timer const htmr);
-extern void timer_stop(h_timer const htmr);
-
-extern void set_frequency(h_timer const htmr, uint16_t freq);
-extern void set_pwma(h_timer const htmr, uint8_t percent);
-extern void set_pwmb(h_timer const htmr, uint8_t percent);
-extern void set_pwmc(h_timer const htmr, uint8_t percent);
+extern void     set_frequency(h_timer const htmr, uint16_t freq);
+extern void     set_pwma(h_timer const htmr, uint8_t percent);
+extern void     set_pwmb(h_timer const htmr, uint8_t percent);
+extern void     set_pwmc(h_timer const htmr, uint8_t percent);
 
 #endif //!AVR_TIMERS
