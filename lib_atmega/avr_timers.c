@@ -1,12 +1,19 @@
 #include "avr_timers.h"
 
+typedef uint8_t (*to_presc)(uint16_t value);
+typedef uint16_t (*calc_top_presc)(uint32_t freq, uint16_t top);
+
+uint8_t to_prescaler(uint16_t value);
+uint8_t to_prescaler2(uint16_t value);
+
 #pragma pack(push, 1)
 struct __wg_mode__ {
-    uint16_t max_period;
+    uint16_t        max_top;
+    uint8_t         reg_xcrx;
 
-    uint8_t  (*to_prescaler)(uint16_t presc_value);
-    uint16_t (*calc_presc)(uint32_t freq, uint16_t top);
-    uint16_t (*calc_period)(uint32_t freq, uint16_t presc);
+    to_presc        to_prescaler;
+    calc_top_presc  calc_presc;
+    calc_top_presc  calc_period;
 };
 
 struct __timer_base__ {
@@ -21,9 +28,6 @@ struct __timer_base__ {
     struct __wg_mode__      mode;
 };
 #pragma pack(pop)
-
-uint8_t to_prescaler(uint16_t value);
-uint8_t to_prescaler2(uint16_t value);
 
 #define TRM_TCCRA 0
 #define TRM_TCCRB 1
@@ -62,24 +66,22 @@ volatile uint8_t* tmrrgstrmap[6][14] = {
     { &TCCR5A, &TCCR5B, &TCCR5C, &TIMSK5, &TCNT5H, &TCNT5L, &OCR5AH, &OCR5AL, &OCR5BH, &OCR5BL, &OCR5CH, &OCR5CL, &ICR5H, &ICR5L }
 };
 
-typedef uint16_t (*calc_top_presc)(uint32_t freq, uint16_t top);
 calc_top_presc calcprescmap8[8] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 calc_top_presc calcperiodmap8[8] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-calc_top_presc calcprescmap16[15] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+calc_top_presc calcprescmap16[16] = {
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-calc_top_presc calcperiodmap16[15] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+calc_top_presc calcperiodmap16[16] = {
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-typedef uint16_t (*to_presc)(uint32_t freq, uint16_t top);
 to_presc toprescmap[2] = {
     &to_prescaler, &to_prescaler2
 };
@@ -118,7 +120,12 @@ void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
     if(timer->class_name == TCN_8BIT) {
         set_wgmn8(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], wgm);
 
-        timer->mode.max_period      = 255;
+        timer->mode.max_top      = 255;
+        if(wgm == WT8_CTC_OCRA || wgm == WT8_FAST_OCRA || wgm == WT8_PHASE_OCRA)
+            timer->mode.reg_xcrx = MAKEREG(TRM_OCRAH, TRM_OCRAL);
+        else
+            timer->mode.reg_xcrx = 0;
+
         timer->mode.calc_presc      = *(calc_top_presc*)&wgmfoomap[1][wgm];
         timer->mode.calc_period     = *(calc_top_presc*)&wgmfoomap[3][wgm];
     }
@@ -126,13 +133,20 @@ void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
         set_wgmn16(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], wgm);
 
         if(wgm == WT16_PHASE_0FF || wgm == WT16_FAST_0FF)
-            timer->mode.max_period = 255;
+            timer->mode.max_top = 255;
         else if(wgm == WT16_PHASE_1FF || wgm == WT16_FAST_1FF)
-            timer->mode.max_period = 511;
+            timer->mode.max_top = 511;
         else if(wgm == WT16_PHASE_3FF || wgm == WT16_FAST_3FF)
-            timer->mode.max_period = 1023;
+            timer->mode.max_top = 1023;
         else
-            timer->mode.max_period = 65535;
+            timer->mode.max_top = 65535;
+
+        if(wgm == WT16_CTC_OCRA || wgm == WT16_FAST_OCRA || wgm == WT16_PHASE_OCRA || wgm == WT16_FREQUENCY_OCRA)
+            timer->mode.reg_xcrx = MAKEREG(TRM_OCRAH, TRM_OCRAL);
+        else if(wgm == WT16_CTC_ICR || wgm == WT16_FAST_ICR || wgm == WT16_PHASE_ICR || wgm == WT16_FREQUENCY_ICR)
+            timer->mode.reg_xcrx = MAKEREG(TRM_ICRH, TRM_ICRL);
+        else
+            timer->mode.reg_xcrx = 0;
 
         timer->mode.calc_presc     = *(calc_top_presc*)&wgmfoomap[2][wgm];
         timer->mode.calc_period    = *(calc_top_presc*)&wgmfoomap[4][wgm];
@@ -292,13 +306,13 @@ void set_frequency(h_timer const htmr, uint16_t freq) {
         uint16_t xcrx = 0;
 
         if(tmr->mode.calc_presc != NULL) {
-            presc = tmr->mode.to_prescaler(tmr->mode.calc_presc(freq, tmr->mode.max_period));
-            if(tmr->mode.calc_period != NULL);
+            presc = tmr->mode.to_prescaler(tmr->mode.calc_presc(freq, tmr->mode.max_top));
+            if(tmr->mode.calc_period != NULL)
                 xcrx = tmr->mode.calc_period(freq, presc);
 
             set_presc(tmr, presc);
-            if(tmr->mode.calc_period != NULL);
-                set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_ICRH], tmrrgstrmap[tmr->timer_name][TRM_ICRL], xcrx);
+            if(tmr->mode.reg_xcrx != 0)
+                set_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name][LOREG(tmr->mode.reg_xcrx)], xcrx);
         }
         else {
             set_presc(tmr, 0);
