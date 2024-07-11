@@ -57,6 +57,7 @@ extern void     set_prescalern(volatile uint8_t* const tccrnb, uint8_t n_presc);
 extern void     set_timskn8(volatile uint8_t* const timskn, uint8_t timsk);
 extern void     set_timskn16(volatile uint8_t* const timskn, uint8_t timsk);
 
+extern uint16_t get_registerx(volatile uint8_t *const rgstrh, volatile uint8_t *const rgstrl);
 extern void     set_registerx(volatile uint8_t* const rgstrh, volatile uint8_t* const rgstrl, uint16_t value);
 
 #endif //!TIMERS_AVR

@@ -143,6 +143,15 @@ void set_timskn16(volatile uint8_t *const timskn, uint8_t timsk) {
                 set_timsk_base(((*timskn) & 0xd0), timsk);
 }
 
+uint16_t get_registerx(volatile uint8_t *const rgstrh, volatile uint8_t *const rgstrl) {
+    uint16_t value = 0;
+    if(rgstrh != NULL)
+        value |= (*rgstrh) << 8;
+    if(rgstrl != NULL)
+        value |= (*rgstrl);
+    return value;;
+}
+
 void set_registerx(volatile uint8_t *const rgstrh, volatile uint8_t *const rgstrl, uint16_t value) {
     if(rgstrh != NULL)
         (*rgstrh) = (uint8_t)(value>>8);

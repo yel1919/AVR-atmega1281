@@ -6,6 +6,13 @@ typedef uint16_t (*calc_top_presc)(uint32_t freq, uint16_t top);
 uint8_t to_prescaler(uint16_t value);
 uint8_t to_prescaler2(uint16_t value);
 
+uint16_t calc_prescaler_ctc(uint32_t freq, uint16_t top);
+uint16_t calc_prescaler_fastpwm(uint32_t freq, uint16_t top);
+uint16_t calc_prescaler_correctpwm(uint32_t freq, uint16_t top);
+uint16_t calc_top_ctc(uint32_t freq, uint16_t prescaler);
+uint16_t calc_top_fastpwm(uint32_t freq, uint16_t prescaler);
+uint16_t calc_top_correctpwm(uint32_t freq, uint16_t prescaler);
+
 #pragma pack(push, 1)
 struct __wg_mode__ {
     uint16_t        max_top;
@@ -67,26 +74,71 @@ volatile uint8_t* tmrrgstrmap[6][14] = {
 };
 
 calc_top_presc calcprescmap8[8] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, &calc_prescaler_correctpwm, &calc_prescaler_ctc, &calc_prescaler_fastpwm, NULL, &calc_prescaler_correctpwm, NULL, &calc_prescaler_fastpwm
 };
 
-calc_top_presc calcperiodmap8[8] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+calc_top_presc calctopmap8[8] = {
+    NULL, &calc_top_correctpwm, &calc_top_ctc, &calc_top_fastpwm, NULL, &calc_top_correctpwm, NULL, &calc_top_fastpwm
 };
+
+#define WT16_PHASE_0FF          0x01
+#define WT16_PHASE_1FF          0x02
+#define WT16_PHASE_3FF          0x03
+#define WT16_CTC_OCRA           0x04
+#define WT16_FAST_0FF           0x05
+#define WT16_FAST_1FF           0x06
+#define WT16_FAST_3FF           0x07
+#define WT16_FREQUENCY_ICR      0x08
+#define WT16_FREQUENCY_OCRA     0x09
+#define WT16_PHASE_ICR          0x0A
+#define WT16_PHASE_OCRA         0x0B
+#define WT16_CTC_ICR            0x0C
+#define WT16_FAST_ICR           0x0E
+#define WT16_FAST_OCRA          0x0F
 
 calc_top_presc calcprescmap16[16] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_ctc,
+    &calc_prescaler_fastpwm,
+    &calc_prescaler_fastpwm,
+    &calc_prescaler_fastpwm,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_correctpwm,
+    &calc_prescaler_ctc,
+    NULL,
+    &calc_prescaler_fastpwm,
+    &calc_prescaler_fastpwm
 };
 
-calc_top_presc calcperiodmap16[16] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+calc_top_presc calctopmap16[16] = {
+    NULL,
+    &calc_top_correctpwm,
+    &calc_top_correctpwm,
+    &calc_top_correctpwm,
+    &calc_top_ctc,
+    &calc_top_fastpwm,
+    &calc_top_fastpwm,
+    &calc_top_fastpwm,
+    &calc_top_correctpwm,
+    &calc_top_correctpwm,
+    &calc_top_correctpwm,
+    &calc_top_correctpwm,
+    &calc_top_ctc,
+    NULL,
+    &calc_top_fastpwm,
+    &calc_top_fastpwm
 };
 
 to_presc toprescmap[2] = {
     &to_prescaler, &to_prescaler2
 };
 
-void* wgmfoomap[5] = { toprescmap, calcprescmap8, calcprescmap16, calcperiodmap8, calcperiodmap16 };
+void* wgmfoomap[5] = { toprescmap, calcprescmap8, calcprescmap16, calctopmap8, calctopmap16 };
 
 h_timer tmr_table[MAX_TMR];
 
@@ -262,14 +314,6 @@ void timer_stop(h_timer const htmr) {
     }
 }
 
-uint32_t get_fastpwm(uint32_t freq, uint16_t value) {
-    return round(F_CPU / (double)(freq * (1 + value)));
-}
-
-uint32_t get_correctpwm(uint32_t freq, uint16_t value) {
-    return round(F_CPU / (double)(2 * freq * value));
-}
-
 uint8_t to_prescaler(uint16_t value) {
     uint8_t presc = 0;
 
@@ -298,6 +342,42 @@ uint8_t to_prescaler2(uint16_t value) {
     return presc;
 }
 
+uint32_t calc_frequency_ctc(uint16_t top, uint16_t prescaler) {
+    return round(F_CPU / (double)(2 * top * prescaler));
+}
+
+uint32_t calc_frequency_fastpwm(uint16_t top, uint16_t prescaler) {
+    return round(F_CPU / (double)(prescaler * (1 + top)));
+}
+
+uint32_t calc_frequency_correctpwm(uint16_t top, uint16_t prescaler) {
+    return round(F_CPU / (double)(2 * top * prescaler));
+}
+
+uint16_t calc_prescaler_ctc(uint32_t freq, uint16_t top) {
+    return ceil(F_CPU / (double)(2 * top * freq));
+}
+
+uint16_t calc_prescaler_fastpwm(uint32_t freq, uint16_t top) {
+    return ceil(F_CPU / (double)(freq * (1 + top)));
+}
+
+uint16_t calc_prescaler_correctpwm(uint32_t freq, uint16_t top) {
+    return ceil(F_CPU / (double)(2 * top * freq));
+}
+
+uint16_t calc_top_ctc(uint32_t freq, uint16_t prescaler) {
+    return round(F_CPU / (double)(2 * prescaler * freq));
+}
+
+uint16_t calc_top_fastpwm(uint32_t freq, uint16_t prescaler) {
+    return round(F_CPU / (double)(freq * prescaler)) - 1;
+}
+
+uint16_t calc_top_correctpwm(uint32_t freq, uint16_t prescaler) {
+    return round(F_CPU / (double)(2 * prescaler * freq));
+}
+
 void set_frequency(h_timer const htmr, uint16_t freq) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
@@ -316,6 +396,23 @@ void set_frequency(h_timer const htmr, uint16_t freq) {
         }
         else {
             set_presc(tmr, 0);
+        }
+    }
+}
+
+void set_porta_percent(h_timer const htmr, uint8_t percent) {
+    if(htmr != NULL) {
+        struct __timer_base__* tmr = (struct __timer_base__*)htmr;
+        uint16_t valuea = 0;
+        if(tmr->mode.reg_xcrx != MAKEREG(TRM_OCRAH, TRM_OCRAL)) {
+            if(tmr->mode.reg_xcrx != MAKEREG(TRM_ICRH, TRM_ICRL))
+                valuea = (tmr->mode.max_top / (float)(100)) * percent;
+            else {
+                uint16_t value_icr = 0;
+                value_icr = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name][LOREG(tmr->mode.reg_xcrx)]);
+                valuea = (value_icr / (float)(100)) * percent;
+            }
+            set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAH], tmrrgstrmap[tmr->timer_name][TRM_OCRAL], valuea);
         }
     }
 }

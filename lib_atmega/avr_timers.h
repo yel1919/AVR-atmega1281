@@ -9,7 +9,7 @@
 #define MAX_TMR 6
 
 #define HIREG(x)        ((((uint8_t)(x)) >> 4) & 0x0F)
-#define LOREG(x)        ((uint8_t)(x) & 0x0F)
+#define LOREG(x)        (((uint8_t)(x)) & 0x0F)
 #define MAKEREG(h, l)   (((((uint8_t)(h)) & 0x0F) << 4) | (((uint8_t)(l)) & 0x0F))
 
 //------------------
@@ -151,8 +151,12 @@ extern void     timer_start(h_timer const htmr);
 extern void     timer_stop(h_timer const htmr);
 
 extern void     set_frequency(h_timer const htmr, uint16_t freq);
-extern void     set_pwma(h_timer const htmr, uint8_t percent);
-extern void     set_pwmb(h_timer const htmr, uint8_t percent);
-extern void     set_pwmc(h_timer const htmr, uint8_t percent);
+extern void     set_porta_percent(h_timer const htmr, uint8_t percent);
+extern void     set_portb_percent(h_timer const htmr, uint8_t percent);
+extern void     set_portc_percent(h_timer const htmr, uint8_t percent);
+
+extern uint32_t calc_frequency_ctc(uint16_t top, uint16_t prescaler);
+extern uint32_t calc_frequency_fastpwm(uint16_t top, uint16_t prescaler);
+extern uint32_t calc_frequency_correctpwm(uint16_t top, uint16_t prescaler);
 
 #endif //!AVR_TIMERS
