@@ -1,10 +1,13 @@
 #include "avr_timers.h"
 
-typedef uint8_t (*to_presc)(uint16_t value);
+typedef uint8_t  (*v2p)(uint16_t value);
+typedef uint16_t (*p2v)(uint8_t presc);
 typedef uint16_t (*calc_top_presc)(uint32_t freq, uint16_t top);
 
-uint8_t to_prescaler(uint16_t value);
-uint8_t to_prescaler2(uint16_t value);
+uint8_t  value2presc(uint16_t value);
+uint8_t  value2presc2(uint16_t value);
+uint16_t presc2value(uint8_t presc);
+uint16_t presc2value2(uint8_t presc);
 
 uint16_t calc_prescaler_ctc(uint32_t freq, uint16_t top);
 uint16_t calc_prescaler_fastpwm(uint32_t freq, uint16_t top);
@@ -15,12 +18,13 @@ uint16_t calc_top_correctpwm(uint32_t freq, uint16_t prescaler);
 
 #pragma pack(push, 1)
 struct __wg_mode__ {
-    uint16_t        max_top;
-    uint8_t         reg_xcrx;
+    uint16_t                max_top;
+    uint8_t                 reg_xcrx;
 
-    to_presc        to_prescaler;
-    calc_top_presc  calc_presc;
-    calc_top_presc  calc_period;
+    v2p                     to_prescaler;
+    p2v                     to_value;
+    calc_top_presc          calc_presc;
+    calc_top_presc          calc_period;
 };
 
 struct __timer_base__ {
@@ -36,24 +40,29 @@ struct __timer_base__ {
 };
 #pragma pack(pop)
 
-#define TRM_TCCRA 0
-#define TRM_TCCRB 1
-#define TRM_TCCRC 2
-#define TRM_TIMSK 3
-#define TRM_TCNTH 4
-#define TRM_TCNTL 5
-#define TRM_OCRAH 6
-#define TRM_OCRAL 7
-#define TRM_OCRBH 8
-#define TRM_OCRBL 9
-#define TRM_OCRCH 10
-#define TRM_OCRCL 11
-#define TRM_ICRH  12
-#define TRM_ICRL  13
+#define MAX_TOP_0FF     255
+#define MAX_TOP_1FF     511
+#define MAX_TOP_3FF     1023
+#define MAX_TOP_XCRX    65535
 
-#define TPM_PORTA 0
-#define TPM_PORTB 1
-#define TPM_PORTC 2
+#define TRM_TCCRA       0
+#define TRM_TCCRB       1
+#define TRM_TCCRC       2
+#define TRM_TIMSK       3
+#define TRM_TCNTH       4
+#define TRM_TCNTL       5
+#define TRM_OCRAH       6
+#define TRM_OCRAL       7
+#define TRM_OCRBH       8
+#define TRM_OCRBL       9
+#define TRM_OCRCH       10
+#define TRM_OCRCL       11
+#define TRM_ICRH        12
+#define TRM_ICRL        13
+
+#define TPM_PORTA       0
+#define TPM_PORTB       1
+#define TPM_PORTC       2
 
 uint8_t tmrpinmap [6][3] = {
     { PNB7, PNG5, PN00 },
@@ -80,21 +89,6 @@ calc_top_presc calcprescmap8[8] = {
 calc_top_presc calctopmap8[8] = {
     NULL, &calc_top_correctpwm, &calc_top_ctc, &calc_top_fastpwm, NULL, &calc_top_correctpwm, NULL, &calc_top_fastpwm
 };
-
-#define WT16_PHASE_0FF          0x01
-#define WT16_PHASE_1FF          0x02
-#define WT16_PHASE_3FF          0x03
-#define WT16_CTC_OCRA           0x04
-#define WT16_FAST_0FF           0x05
-#define WT16_FAST_1FF           0x06
-#define WT16_FAST_3FF           0x07
-#define WT16_FREQUENCY_ICR      0x08
-#define WT16_FREQUENCY_OCRA     0x09
-#define WT16_PHASE_ICR          0x0A
-#define WT16_PHASE_OCRA         0x0B
-#define WT16_CTC_ICR            0x0C
-#define WT16_FAST_ICR           0x0E
-#define WT16_FAST_OCRA          0x0F
 
 calc_top_presc calcprescmap16[16] = {
     NULL,
@@ -134,11 +128,15 @@ calc_top_presc calctopmap16[16] = {
     &calc_top_fastpwm
 };
 
-to_presc toprescmap[2] = {
-    &to_prescaler, &to_prescaler2
+v2p toprescmap[2] = {
+    &value2presc, &value2presc2
 };
 
-void* wgmfoomap[5] = { toprescmap, calcprescmap8, calcprescmap16, calctopmap8, calctopmap16 };
+p2v tovaluemap[2] = {
+    &presc2value, &presc2value2
+};
+
+void* wgmfoomap[6] = { &toprescmap, &tovaluemap, &calcprescmap8, &calcprescmap16, &calctopmap8, &calctopmap16 };
 
 h_timer tmr_table[MAX_TMR];
 
@@ -164,34 +162,38 @@ void set_presc(struct __timer_base__* const timer, uint8_t presc) {
 
 void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
 {
-    if(timer->timer_name == TN_SECOND)
-        timer->mode.to_prescaler   = *(to_presc*)&wgmfoomap[0][1];
-    else
-        timer->mode.to_prescaler   = *(to_presc*)&wgmfoomap[0][0];
+    if(timer->timer_name == TN_SECOND) {
+        timer->mode.to_prescaler   = ((v2p*)wgmfoomap[0])[1];
+        timer->mode.to_value       = ((p2v*)wgmfoomap[1])[1];
+    }
+    else {
+        timer->mode.to_prescaler   = ((v2p*)wgmfoomap[0])[0];
+        timer->mode.to_value       = ((p2v*)wgmfoomap[1])[0];
+    }
 
     if(timer->class_name == TCN_8BIT) {
         set_wgmn8(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], wgm);
 
-        timer->mode.max_top      = 255;
+        timer->mode.max_top      = MAX_TOP_0FF;
         if(wgm == WT8_CTC_OCRA || wgm == WT8_FAST_OCRA || wgm == WT8_PHASE_OCRA)
             timer->mode.reg_xcrx = MAKEREG(TRM_OCRAH, TRM_OCRAL);
         else
             timer->mode.reg_xcrx = 0;
 
-        timer->mode.calc_presc      = *(calc_top_presc*)&wgmfoomap[1][wgm];
-        timer->mode.calc_period     = *(calc_top_presc*)&wgmfoomap[3][wgm];
+        timer->mode.calc_presc      = ((calc_top_presc*)wgmfoomap[2])[wgm];
+        timer->mode.calc_period     = ((calc_top_presc*)wgmfoomap[4])[wgm];
     }
     else if(timer->class_name == TCN_16BIT) {
         set_wgmn16(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB], wgm);
 
         if(wgm == WT16_PHASE_0FF || wgm == WT16_FAST_0FF)
-            timer->mode.max_top = 255;
+            timer->mode.max_top = MAX_TOP_0FF;
         else if(wgm == WT16_PHASE_1FF || wgm == WT16_FAST_1FF)
-            timer->mode.max_top = 511;
+            timer->mode.max_top = MAX_TOP_1FF;
         else if(wgm == WT16_PHASE_3FF || wgm == WT16_FAST_3FF)
-            timer->mode.max_top = 1023;
+            timer->mode.max_top = MAX_TOP_3FF;
         else
-            timer->mode.max_top = 65535;
+            timer->mode.max_top = MAX_TOP_XCRX;
 
         if(wgm == WT16_CTC_OCRA || wgm == WT16_FAST_OCRA || wgm == WT16_PHASE_OCRA || wgm == WT16_FREQUENCY_OCRA)
             timer->mode.reg_xcrx = MAKEREG(TRM_OCRAH, TRM_OCRAL);
@@ -200,26 +202,28 @@ void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
         else
             timer->mode.reg_xcrx = 0;
 
-        timer->mode.calc_presc     = *(calc_top_presc*)&wgmfoomap[2][wgm];
-        timer->mode.calc_period    = *(calc_top_presc*)&wgmfoomap[4][wgm];
+        timer->mode.calc_presc     = ((calc_top_presc*)wgmfoomap[3])[wgm];
+        timer->mode.calc_period    = ((calc_top_presc*)wgmfoomap[5])[wgm];
     }
 }
 
-void set_timer_mode(struct __timer_base__* const timer, const struct timer_mode* const modes) {
+void set_timer_mode(h_timer const timer, const struct timer_mode* const modes) {
     if(timer != NULL) {
-        set_comna(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], modes->coma);
-        set_comnb(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], modes->comb);
-        set_wgmode(timer, modes->wgm);
+        struct __timer_base__* tmr = (struct __timer_base__*)timer;
 
-        if(timer->class_name == TCN_8BIT) {
-            set_timskn8(tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK], modes->timsk);
+        set_comna(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRA], modes->coma);
+        set_comnb(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRA], modes->comb);
+        set_wgmode(tmr, modes->wgm);
+
+        if(tmr->class_name == TCN_8BIT) {
+            set_timskn8(tmrrgstrmap[tmr->timer_name - 1][TRM_TIMSK], modes->timsk);
         }
-        else if(timer->class_name == TCN_16BIT) {
-            set_comnc(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], modes->comc);
-            set_timskn16(tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK], modes->timsk);
+        else if(tmr->class_name == TCN_16BIT) {
+            set_comnc(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRA], modes->comc);
+            set_timskn16(tmrrgstrmap[tmr->timer_name - 1][TRM_TIMSK], modes->timsk);
         }
 
-        set_presc(timer, modes->presc);
+        set_frequency(timer, modes->freq);
     }
 }
 
@@ -229,7 +233,7 @@ struct timer_mode get_timer_mode(struct __timer_base__* const timer) {
         modes.coma = get_comna(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA]);
         modes.comb = get_comnb(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA]);
         modes.timsk = get_timskn(tmrrgstrmap[timer->timer_name - 1][TRM_TIMSK]);
-        modes.presc = timer->presc;
+        //modes.presc = timer->presc;
         if(timer->class_name == TCN_8BIT) {
             modes.wgm   = get_wgmn8(tmrrgstrmap[timer->timer_name - 1][TRM_TCCRA], tmrrgstrmap[timer->timer_name - 1][TRM_TCCRB]);
         }
@@ -262,9 +266,9 @@ h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* 
         tmr->handler = handler;
 
         outports_enable((h_timer)tmr, out_ports, TRUE);
-        set_timer_mode(tmr, modes);
+        set_timer_mode((h_timer)tmr, modes);
 
-        sei();
+        //sei();
 
         return tmr_table[tmr->class_name - 1];
     }
@@ -278,7 +282,7 @@ boolean destroy_timer(h_timer htmr) {
         timer_stop(htmr);
         struct timer_mode modes;
         memset(&modes, 0, sizeof(struct timer_mode));
-        set_timer_mode(tmr, &modes);
+        set_timer_mode((h_timer)tmr, &modes);
 
         set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAH], tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAL], 0);
         set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRBH], tmrrgstrmap[tmr->timer_name - 1][TRM_OCRBL], 0);
@@ -305,41 +309,76 @@ void timer_start(h_timer const htmr) {
     }
 }
 
-void timer_stop(h_timer const htmr) {
+void timer_pause(h_timer const htmr) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
         tmr->active = FALSE;
         set_prescalern(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRB], 0);
+    }
+}
+
+void timer_stop(h_timer const htmr) {
+    if(htmr != NULL) {
+        struct __timer_base__* tmr = (struct __timer_base__*)htmr;
+        timer_pause(htmr);
         set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_TCNTH], tmrrgstrmap[tmr->timer_name - 1][TRM_TCNTL], 0);
     }
 }
 
-uint8_t to_prescaler(uint16_t value) {
+uint8_t value2presc(uint16_t value) {
     uint8_t presc = 0;
 
-    if(value > 0x100) 		presc = PTN_1024CLK;
-    else if(value > 0x040) 	presc = PTN_256CLK;
-    else if(value > 0x008) 	presc = PTN_64CLK;
-    else if(value > 0x001) 	presc = PTN_8CLK;
-    else if(value > 0x000) 	presc = PTN_1CLK;
-    else 					presc = PT_NOCLK;
+    if(value > PTV_256CLK) 		presc = PTN_1024CLK;
+    else if(value > PTV_64CLK) 	presc = PTN_256CLK;
+    else if(value > PTV_8CLK) 	presc = PTN_64CLK;
+    else if(value > PTV_1CLK) 	presc = PTN_8CLK;
+    else if(value > PTV_NOCLK) 	presc = PTN_1CLK;
+    else                        presc = PT_NOCLK;
 
     return presc;
 }
 
-uint8_t to_prescaler2(uint16_t value) {
+uint8_t value2presc2(uint16_t value) {
     uint8_t presc = 0;
 
-    if(value > 0x100) 		presc = PT2_1024CLK;
-    else if(value > 0x080) 	presc = PT2_256CLK;
-    else if(value > 0x040) 	presc = PT2_128CLK;
-    else if(value > 0x020) 	presc = PT2_64CLK;
-    else if(value > 0x008) 	presc = PT2_32CLK;
-    else if(value > 0x001) 	presc = PT2_8CLK;
-    else if(value > 0x000) 	presc = PT2_1CLK;
-    else 					presc = PT_NOCLK;
+    if(value > PTV_256CLK) 		presc = PT2_1024CLK;
+    else if(value > PTV_128CLK) presc = PT2_256CLK;
+    else if(value > PTV_64CLK) 	presc = PT2_128CLK;
+    else if(value > PTV_32CLK) 	presc = PT2_64CLK;
+    else if(value > PTV_8CLK) 	presc = PT2_32CLK;
+    else if(value > PTV_1CLK) 	presc = PT2_8CLK;
+    else if(value > PTV_NOCLK) 	presc = PT2_1CLK;
+    else                        presc = PT_NOCLK;
 
     return presc;
+}
+
+uint16_t presc2value(uint8_t presc) {
+    uint16_t value = 0;
+
+    if(presc == PTN_1024CLK)     value = PTV_1024CLK;
+    else if(presc == PTN_256CLK) value = PTV_256CLK;
+    else if(presc == PTN_64CLK)  value = PTV_64CLK;
+    else if(presc == PTN_8CLK) 	 value = PTV_8CLK;
+    else if(presc == PTN_1CLK) 	 value = PTV_1CLK;
+    else                     	 value = PTV_NOCLK;
+
+    return value;
+}
+
+uint16_t presc2value2(uint8_t presc) {
+    uint16_t value = 0;
+
+    if(presc == PT2_1024CLK)     value = PTV_1024CLK;
+    else if(presc == PT2_256CLK) value = PTV_256CLK;
+    else if(value == PT2_128CLK) value = PTV_128CLK;
+    else if(presc == PT2_64CLK)  value = PTV_64CLK;
+    else if(value == PT2_32CLK)  value = PTV_32CLK;
+    else if(presc == PT2_8CLK) 	 value = PTV_8CLK;
+    else if(presc == PT2_1CLK) 	 value = PTV_1CLK;
+    else                     	 value = PTV_NOCLK;
+
+    return value;
 }
 
 uint32_t calc_frequency_ctc(uint16_t top, uint16_t prescaler) {
@@ -388,11 +427,11 @@ void set_frequency(h_timer const htmr, uint16_t freq) {
         if(tmr->mode.calc_presc != NULL) {
             presc = tmr->mode.to_prescaler(tmr->mode.calc_presc(freq, tmr->mode.max_top));
             if(tmr->mode.calc_period != NULL)
-                xcrx = tmr->mode.calc_period(freq, presc);
+                xcrx = tmr->mode.calc_period(freq, tmr->mode.to_value(presc));
 
             set_presc(tmr, presc);
             if(tmr->mode.reg_xcrx != 0)
-                set_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name][LOREG(tmr->mode.reg_xcrx)], xcrx);
+                set_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOREG(tmr->mode.reg_xcrx)], xcrx);
         }
         else {
             set_presc(tmr, 0);
@@ -404,15 +443,42 @@ void set_porta_percent(h_timer const htmr, uint8_t percent) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
         uint16_t valuea = 0;
-        if(tmr->mode.reg_xcrx != MAKEREG(TRM_OCRAH, TRM_OCRAL)) {
+
+        if(tmr->mode.reg_xcrx != MAKEREG(TRM_OCRAH, TRM_OCRAL)) {       //проверка, не повлияет ли подстановка на TOP (TOP OCRA) таймера
             if(tmr->mode.reg_xcrx != MAKEREG(TRM_ICRH, TRM_ICRL))
-                valuea = (tmr->mode.max_top / (float)(100)) * percent;
+                valuea = (uint16_t)round((tmr->mode.max_top / (float)(100)) * percent);
             else {
                 uint16_t value_icr = 0;
-                value_icr = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name][LOREG(tmr->mode.reg_xcrx)]);
-                valuea = (value_icr / (float)(100)) * percent;
+                value_icr = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOREG(tmr->mode.reg_xcrx)]);
+                valuea = (uint16_t)round((value_icr / (float)(100)) * percent);
             }
             set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAH], tmrrgstrmap[tmr->timer_name][TRM_OCRAL], valuea);
         }
+    }
+}
+
+void set_port_percent(h_timer const htmr, uint8_t percent, uint8_t ocrxh, uint8_t ocrxl) {
+    struct __timer_base__* tmr = (struct __timer_base__*)htmr;
+    uint16_t top = 0;
+    uint16_t port_value = 0;
+
+    if(tmr->mode.reg_xcrx != 0)
+        top = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOREG(tmr->mode.reg_xcrx)]);
+    else
+        top = tmr->mode.max_top;
+
+    port_value = (uint16_t)round((top / (float)(100)) * percent);
+    set_registerx(tmrrgstrmap[tmr->timer_name - 1][ocrxh], tmrrgstrmap[tmr->timer_name - 1][ocrxl], port_value);
+}
+
+void set_portb_percent(h_timer const htmr, uint8_t percent) {
+    if(htmr != NULL) {
+        set_port_percent(htmr, percent, TRM_OCRBH, TRM_OCRBL);
+    }
+}
+
+void set_portc_percent(h_timer const htmr, uint8_t percent) {
+    if(htmr != NULL) {
+        set_port_percent(htmr, percent, TRM_OCRCH, TRM_OCRCL);
     }
 }

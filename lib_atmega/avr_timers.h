@@ -86,7 +86,7 @@ enum timer_name {
 #define WT16_FAST_OCRA          0x0F
 //-------------------------------
 
-//-------------------------------
+//----------------------------------
 // PRESCALER types
 //
 #define PT_NOCLK                0x00
@@ -106,7 +106,17 @@ enum timer_name {
 #define PT2_128CLK              0x05
 #define PT2_256CLK              0x06
 #define PT2_1024CLK             0x07
-//-------------------------------
+
+// Value
+#define PTV_NOCLK               0x000
+#define PTV_1CLK                0x001
+#define PTV_8CLK                0x008
+#define PTV_32CLK               0x020
+#define PTV_64CLK               0x040
+#define PTV_128CLK              0x080
+#define PTV_256CLK              0x100
+#define PTV_1024CLK             0x400
+//----------------------------------
 
 //-------------------------------
 // TIMSK Types
@@ -133,13 +143,12 @@ typedef void(*timer_event)(h_timer htmr, enum event_type event);
 
 #pragma pack(push, 1)
 struct timer_mode {
-    uint8_t coma    : 2,
-            comb    : 2,
-            wgm     : 4;
-    uint8_t comc    : 2,
-            timsk   : 6;
-    uint8_t presc   : 3,
-            reserve : 5;
+    uint8_t  coma    : 2,
+             comb    : 2,
+             wgm     : 4;
+    uint8_t  comc    : 2,
+             timsk   : 6;
+    uint32_t freq;
 };
 #pragma pack(pop)
 
@@ -148,7 +157,10 @@ extern boolean  destroy_timer(h_timer htmr);
 extern void     outports_enable(h_timer const timer, uint8_t out_ports, boolean flag);
 
 extern void     timer_start(h_timer const htmr);
+extern void     timer_pause(h_timer const htmr);
 extern void     timer_stop(h_timer const htmr);
+
+extern void     set_timer_mode(h_timer const timer, const struct timer_mode* const modes);
 
 extern void     set_frequency(h_timer const htmr, uint16_t freq);
 extern void     set_porta_percent(h_timer const htmr, uint8_t percent);
