@@ -159,6 +159,7 @@ extern void     outports_enable(h_timer const timer, uint8_t out_ports, boolean 
 extern void     timer_start(h_timer const htmr);
 extern void     timer_pause(h_timer const htmr);
 extern void     timer_stop(h_timer const htmr);
+extern void     timer_restart(h_timer const htmr);
 
 extern void     set_timer_mode(h_timer const timer, const struct timer_mode* const modes);
 

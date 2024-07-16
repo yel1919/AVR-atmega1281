@@ -317,11 +317,22 @@ void timer_pause(h_timer const htmr) {
     }
 }
 
+void set_tcnt(struct __timer_base__* timer, uint16_t value) {
+    if(timer != NULL) {
+        set_registerx(tmrrgstrmap[timer->timer_name - 1][TRM_TCNTH], tmrrgstrmap[timer->timer_name - 1][TRM_TCNTL], value);
+    }
+}
+
 void timer_stop(h_timer const htmr) {
     if(htmr != NULL) {
-        struct __timer_base__* tmr = (struct __timer_base__*)htmr;
         timer_pause(htmr);
-        set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_TCNTH], tmrrgstrmap[tmr->timer_name - 1][TRM_TCNTL], 0);
+        set_tcnt((struct __timer_base__*)htmr, 0);
+    }
+}
+
+void timer_restart(h_timer const htmr) {
+    if(htmr != NULL) {
+        set_tcnt((struct __timer_base__*)htmr, 0);
     }
 }
 
@@ -457,8 +468,7 @@ void set_porta_percent(h_timer const htmr, uint8_t percent) {
     }
 }
 
-void set_port_percent(h_timer const htmr, uint8_t percent, uint8_t ocrxh, uint8_t ocrxl) {
-    struct __timer_base__* tmr = (struct __timer_base__*)htmr;
+void set_port_percent(struct __timer_base__* const tmr, uint8_t percent, uint8_t ocrxh, uint8_t ocrxl) {
     uint16_t top = 0;
     uint16_t port_value = 0;
 
@@ -473,12 +483,14 @@ void set_port_percent(h_timer const htmr, uint8_t percent, uint8_t ocrxh, uint8_
 
 void set_portb_percent(h_timer const htmr, uint8_t percent) {
     if(htmr != NULL) {
-        set_port_percent(htmr, percent, TRM_OCRBH, TRM_OCRBL);
+        set_port_percent((struct __timer_base__*)htmr, percent, TRM_OCRBH, TRM_OCRBL);
     }
 }
 
 void set_portc_percent(h_timer const htmr, uint8_t percent) {
     if(htmr != NULL) {
-        set_port_percent(htmr, percent, TRM_OCRCH, TRM_OCRCL);
+        struct __timer_base__* tmr = (struct __timer_base__*)htmr;
+        if(tmr->class_name == TCN_16BIT)
+            set_port_percent(tmr, percent, TRM_OCRCH, TRM_OCRCL);
     }
 }
