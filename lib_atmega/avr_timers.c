@@ -34,7 +34,7 @@ struct __timer_base__ {
     uint8_t                 presc;
     boolean                 active;
 
-    timer_event             handler;
+    tmr_cmp_proc            handler;
 
     struct __wg_mode__      mode;
 };
@@ -143,11 +143,11 @@ h_timer tmr_table[MAX_TMR];
 void outports_enable(h_timer const timer, uint8_t out_ports, boolean flag) {
     if(timer != NULL) {
         struct __timer_base__* tmr_base = (struct __timer_base__*)timer;
-        if(out_ports & OUT_PORT0)
+        if(out_ports & OUT_PORTA)
             set_mode(tmrpinmap[tmr_base->timer_name - 1][TPM_PORTA], flag);
-        if(out_ports & OUT_PORT1)
+        if(out_ports & OUT_PORTB)
             set_mode(tmrpinmap[tmr_base->timer_name - 1][TPM_PORTB], flag);
-        if((out_ports & OUT_PORT2) && tmr_base->class_name == TCN_16BIT)
+        if((out_ports & OUT_PORTC) && tmr_base->class_name == TCN_16BIT)
             set_mode(tmrpinmap[tmr_base->timer_name - 1][TPM_PORTC], flag);
     }
 }
@@ -245,7 +245,7 @@ struct timer_mode get_timer_mode(struct __timer_base__* const timer) {
     return modes;
 }
 
-h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports, timer_event handler) {
+h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports, tmr_cmp_proc handler) {
     if(
         (
             (class_name == TCN_8BIT && (timer_name == TN_NULL || timer_name == TN_SECOND)) ||
@@ -493,4 +493,254 @@ void set_portc_percent(h_timer const htmr, uint8_t percent) {
         if(tmr->class_name == TCN_16BIT)
             set_port_percent(tmr, percent, TRM_OCRCH, TRM_OCRCL);
     }
+}
+
+uint16_t get_timer_ptr(h_timer const htimer, uint8_t nIndex) {
+    if(nIndex < sizeof(struct __timer_base__)) {
+        switch(nIndex) {
+            case GTP_NAME:
+            case GTP_CLASS:
+            case GTP_PRESC:
+                return *(((uint8_t*)htimer) + nIndex);
+            case GTP_CMPPROC:
+            default:
+                return *((uint16_t*)(((uint8_t*)htimer) + nIndex));
+        }
+    }
+    return 0;
+}
+
+uint16_t set_timer_ptr(h_timer const htimer, uint8_t nIndex, uint16_t newValue) {
+    uint16_t oldValue = 0;
+    if(nIndex < sizeof(struct __timer_base__)) {
+        switch(nIndex) {
+            case GTP_NAME:
+            case GTP_CLASS:
+            case GTP_PRESC:
+                break;
+            case GTP_CMPPROC:
+            default: {
+                oldValue = get_timer_ptr(htimer, nIndex);
+                *((uint16_t*)(((uint8_t*)htimer) + nIndex)) = newValue;
+                break;
+            }
+        }
+    }
+    return oldValue;
+}
+
+ISR(TIMER0_OVF_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_NULL - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_NULL - 1], TM_OVF);
+    }
+    sei();
+}
+
+ISR(TIMER0_COMPA_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_NULL - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_NULL - 1], TM_COMPA);
+    }
+    sei();
+}
+
+ISR(TIMER0_COMPB_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_NULL - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_NULL - 1], TM_COMPB);
+    }
+    sei();
+}
+
+ISR(TIMER1_CAPT_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIRST - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIRST - 1], TM_CAPT);
+    }
+    sei();
+}
+
+ISR(TIMER1_OVF_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIRST - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIRST - 1], TM_OVF);
+    }
+    sei();
+}
+
+ISR(TIMER1_COMPA_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIRST - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIRST - 1], TM_COMPA);
+    }
+    sei();
+}
+
+ISR(TIMER1_COMPB_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIRST - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIRST - 1], TM_COMPB);
+    }
+    sei();
+}
+
+ISR(TIMER1_COMPC_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIRST - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIRST - 1], TM_COMPC);
+    }
+    sei();
+}
+
+ISR(TIMER2_OVF_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_SECOND - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_SECOND - 1], TM_OVF);
+    }
+    sei();
+}
+
+ISR(TIMER2_COMPA_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_SECOND - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_SECOND - 1], TM_COMPA);
+    }
+    sei();
+}
+
+ISR(TIMER2_COMPB_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_SECOND - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_SECOND - 1], TM_COMPB);
+    }
+    sei();
+}
+
+ISR(TIMER3_CAPT_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_THIRD - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_THIRD - 1], TM_CAPT);
+    }
+    sei();
+}
+
+ISR(TIMER3_OVF_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_THIRD - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_THIRD - 1], TM_OVF);
+    }
+    sei();
+}
+
+ISR(TIMER3_COMPA_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_THIRD - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_THIRD - 1], TM_COMPA);
+    }
+    sei();
+}
+
+ISR(TIMER3_COMPB_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_THIRD - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_THIRD - 1], TM_COMPB);
+    }
+    sei();
+}
+
+ISR(TIMER3_COMPC_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_THIRD - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_THIRD - 1], TM_COMPC);
+    }
+    sei();
+}
+
+ISR(TIMER4_OVF_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FOURTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FOURTH - 1], TM_OVF);
+    }
+    sei();
+}
+
+ISR(TIMER4_COMPA_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FOURTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FOURTH - 1], TM_COMPA);
+    }
+    sei();
+}
+
+ISR(TIMER4_COMPB_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FOURTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FOURTH - 1], TM_COMPB);
+    }
+    sei();
+}
+
+ISR(TIMER4_COMPC_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FOURTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FOURTH - 1], TM_COMPC);
+    }
+    sei();
+}
+
+ISR(TIMER5_OVF_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIFTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIFTH - 1], TM_OVF);
+    }
+    sei();
+}
+
+ISR(TIMER5_COMPA_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIFTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIFTH - 1], TM_COMPA);
+    }
+    sei();
+}
+
+ISR(TIMER5_COMPB_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIFTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIFTH - 1], TM_COMPB);
+    }
+    sei();
+}
+
+ISR(TIMER5_COMPC_vect) {
+    cli();
+    struct __timer_base__* timer = (struct __timer_base__*)tmr_table[TN_FIFTH - 1];
+    if(timer != NULL && timer->handler != NULL) {
+        timer->handler(tmr_table[TN_FIFTH - 1], TM_COMPC);
+    }
+    sei();
 }
