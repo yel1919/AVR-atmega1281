@@ -151,7 +151,9 @@
 typedef struct h_timer__ h_timer__;
 typedef h_timer__* h_timer;
 typedef uint8_t lresult;
+
 typedef lresult(*tmr_cmp_proc)(h_timer htmr, uint8_t msg);
+typedef lresult(*sub_tmr_proc)(h_timer htmr, uint8_t msg, uint8_t subId, void *refData);
 
 #pragma pack(push, 1)
 struct timer_mode {
@@ -186,5 +188,9 @@ extern uint32_t calc_frequency_correctpwm(uint16_t top, uint16_t prescaler);
 
 extern uint16_t get_timer_ptr(h_timer const htimer, uint8_t nIndex);
 extern uint16_t set_timer_ptr(h_timer const htimer, uint8_t nIndex, uint16_t newValue);
+
+extern boolean  set_subtimer(h_timer const htimer, sub_tmr_proc sub_proc, uint8_t subId, void* subRefData);
+extern boolean  remove_subtimer(h_timer const htimer, uint8_t subId);
+extern lresult  def_subtimer_proc(h_timer htmr, uint8_t msg);
 
 #endif //!AVR_TIMERS
