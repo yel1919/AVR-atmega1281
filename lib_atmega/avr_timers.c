@@ -16,7 +16,7 @@ uint16_t calc_top_ctc(uint32_t freq, uint16_t prescaler);
 uint16_t calc_top_fastpwm(uint32_t freq, uint16_t prescaler);
 uint16_t calc_top_correctpwm(uint32_t freq, uint16_t prescaler);
 
-#pragma pack(push, 1)
+//#pragma pack(push, 1)
 struct __wg_mode__ {
     uint16_t                max_top;
     uint8_t                 reg_xcrx;
@@ -25,7 +25,7 @@ struct __wg_mode__ {
     p2v                     to_value;
     calc_top_presc          calc_presc;
     calc_top_presc          calc_period;
-};
+} __attribute__((packed, aligned(1)));
 
 struct __sub_timer__ {
     uint8_t                 id;
@@ -34,7 +34,7 @@ struct __sub_timer__ {
 
     struct __sub_timer__    *next;
     struct __sub_timer__    *prev;
-};
+} __attribute__((packed, aligned(1)));
 
 struct __timer_base__ {
     uint8_t                 timer_name;
@@ -50,8 +50,8 @@ struct __timer_base__ {
     struct __sub_timer__    *subtimer_current;
     struct __sub_timer__    *subtimer_head;
     struct __sub_timer__    *subtimer_tail;
-};
-#pragma pack(pop)
+} __attribute__((packed, aligned(1)));
+//#pragma pack(pop)
 
 #define MAX_TOP_0FF     255
 #define MAX_TOP_1FF     511
@@ -221,7 +221,7 @@ void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
 }
 
 void set_timer_mode(h_timer const timer, const struct timer_mode* const modes) {
-    if(timer != NULL) {
+    if(timer != NULL && modes != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)timer;
 
         set_comna(tmrrgstrmap[tmr->timer_name - 1][TRM_TCCRA], modes->coma);
@@ -264,7 +264,7 @@ h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* 
             (class_name == TCN_8BIT && (timer_name == TN_NULL || timer_name == TN_SECOND)) ||
             (class_name == TCN_16BIT && (timer_name == TN_FIRST || (TN_THIRD <= timer_name && timer_name <= TN_FIFTH)))
         ) &&
-        tmr_table[class_name - 1] == NULL
+        tmr_table[timer_name - 1] == NULL
     ) {
         struct __timer_base__* tmr = NULL;
 
@@ -280,14 +280,14 @@ h_timer create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* 
         tmr->subtimer_current = NULL;
         tmr->handler = handler;
 
-        tmr_table[tmr->class_name - 1] = (h_timer)tmr;
+        tmr_table[tmr->timer_name - 1] = (h_timer)tmr;
 
         outports_enable((h_timer)tmr, out_ports, TRUE);
         set_timer_mode((h_timer)tmr, modes);
 
         //sei();
 
-        return tmr_table[tmr->class_name - 1];
+        return tmr_table[tmr->timer_name - 1];
     }
     return NULL;
 }
@@ -400,7 +400,8 @@ lresult base_timer_proc(h_timer const htimer, uint8_t msg) {
                 timer->subtimer_current = timer->subtimer_head;
         }
 
-        return timer->handler(htimer, msg);
+        if(timer->handler != NULL)
+            return timer->handler(htimer, msg);
     }
 
     return 0;
@@ -430,7 +431,7 @@ boolean destroy_timer(h_timer htmr) {
 
         timer_stop(htmr);
         struct timer_mode modes;
-        memset(&modes, 0, sizeof(struct timer_mode));
+        memset((void*)&modes, 0, sizeof(struct timer_mode));
         set_timer_mode((h_timer)tmr, &modes);
 
         set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAH], tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAL], 0);
@@ -681,145 +682,97 @@ uint16_t set_timer_ptr(h_timer const htimer, uint8_t nIndex, uint16_t newValue) 
 }
 
 ISR(TIMER0_OVF_vect) {
-    cli();
     cmp_timer_proc(TN_NULL, TM_OVF);
-    sei();
 }
 
 ISR(TIMER0_COMPA_vect) {
-    cli();
     cmp_timer_proc(TN_NULL, TM_COMPA);
-    sei();
 }
 
 ISR(TIMER0_COMPB_vect) {
-    cli();
     cmp_timer_proc(TN_NULL, TM_COMPB);
-    sei();
 }
 
 ISR(TIMER1_CAPT_vect) {
-    cli();
     cmp_timer_proc(TN_FIRST, TM_CAPT);
-    sei();
 }
 
 ISR(TIMER1_OVF_vect) {
-    cli();
     cmp_timer_proc(TN_FIRST, TM_OVF);
-    sei();
 }
 
 ISR(TIMER1_COMPA_vect) {
-    cli();
     cmp_timer_proc(TN_FIRST, TM_COMPA);
-    sei();
 }
 
 ISR(TIMER1_COMPB_vect) {
-    cli();
     cmp_timer_proc(TN_FIRST, TM_COMPB);
-    sei();
 }
 
 ISR(TIMER1_COMPC_vect) {
-    cli();
     cmp_timer_proc(TN_FIRST, TM_COMPC);
-    sei();
 }
 
 ISR(TIMER2_OVF_vect) {
-    cli();
     cmp_timer_proc(TN_SECOND, TM_OVF);
-    sei();
 }
 
 ISR(TIMER2_COMPA_vect) {
-    cli();
     cmp_timer_proc(TN_SECOND, TM_COMPA);
-    sei();
 }
 
 ISR(TIMER2_COMPB_vect) {
-    cli();
     cmp_timer_proc(TN_SECOND, TM_COMPB);
-    sei();
 }
 
 ISR(TIMER3_CAPT_vect) {
-    cli();
     cmp_timer_proc(TN_THIRD, TM_CAPT);
-    sei();
 }
 
 ISR(TIMER3_OVF_vect) {
-    cli();
     cmp_timer_proc(TN_THIRD, TM_OVF);
-    sei();
 }
 
 ISR(TIMER3_COMPA_vect) {
-    cli();
     cmp_timer_proc(TN_THIRD, TM_COMPA);
-    sei();
 }
 
 ISR(TIMER3_COMPB_vect) {
-    cli();
     cmp_timer_proc(TN_THIRD, TM_COMPB);
-    sei();
 }
 
 ISR(TIMER3_COMPC_vect) {
-    cli();
     cmp_timer_proc(TN_THIRD, TM_COMPC);
-    sei();
 }
 
 ISR(TIMER4_OVF_vect) {
-    cli();
     cmp_timer_proc(TN_FOURTH, TM_OVF);
-    sei();
 }
 
 ISR(TIMER4_COMPA_vect) {
-    cli();
     cmp_timer_proc(TN_FOURTH, TM_COMPA);
-    sei();
 }
 
 ISR(TIMER4_COMPB_vect) {
-    cli();
     cmp_timer_proc(TN_FOURTH, TM_COMPB);
-    sei();
 }
 
 ISR(TIMER4_COMPC_vect) {
-    cli();
     cmp_timer_proc(TN_FOURTH, TM_COMPC);
-    sei();
 }
 
 ISR(TIMER5_OVF_vect) {
-    cli();
     cmp_timer_proc(TN_FIFTH, TM_OVF);
-    sei();
 }
 
 ISR(TIMER5_COMPA_vect) {
-    cli();
     cmp_timer_proc(TN_FIFTH, TM_COMPA);
-    sei();
 }
 
 ISR(TIMER5_COMPB_vect) {
-    cli();
     cmp_timer_proc(TN_FIFTH, TM_COMPB);
-    sei();
 }
 
 ISR(TIMER5_COMPC_vect) {
-    cli();
     cmp_timer_proc(TN_FIFTH, TM_COMPC);
-    sei();
 }

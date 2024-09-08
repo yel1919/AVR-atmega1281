@@ -155,7 +155,7 @@ typedef uint8_t lresult;
 typedef lresult(*tmr_cmp_proc)(h_timer htmr, uint8_t msg);
 typedef lresult(*sub_tmr_proc)(h_timer htmr, uint8_t msg, uint8_t subId, void *refData);
 
-#pragma pack(push, 1)
+//#pragma pack(push, 1)
 struct timer_mode {
     uint8_t  coma    : 2,
              comb    : 2,
@@ -163,8 +163,8 @@ struct timer_mode {
     uint8_t  comc    : 2,
              timsk   : 6;
     uint32_t freq;
-};
-#pragma pack(pop)
+} __attribute__((packed, aligned(1)));
+//#pragma pack(pop)
 
 extern h_timer  create_timer(uint8_t timer_name, uint8_t class_name, struct timer_mode* modes, uint8_t out_ports, tmr_cmp_proc handler);
 extern boolean  destroy_timer(h_timer htmr);
