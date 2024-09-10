@@ -3,6 +3,7 @@
 
 #define PN00		0x00
 
+#define PNA         0x01
 #define PNA0 		0x10	//16
 #define PNA1 		0x11	//17
 #define PNA2 		0x12	//18
@@ -12,6 +13,7 @@
 #define PNA6 		0x16	//22
 #define PNA7 		0x17	//23
 
+#define PNB         0x02
 #define PNB0 		0x20	//32
 #define PNB1 		0x21	//33
 #define PNB2 		0x22	//34
@@ -21,6 +23,7 @@
 #define PNB6 		0x26	//38
 #define PNB7 		0x27	//39
 
+#define PNC         0x03
 #define PNC0 		0x30	//48
 #define PNC1 		0x31	//49
 #define PNC2 		0x32	//50
@@ -30,6 +33,7 @@
 #define PNC6 		0x36	//54
 #define PNC7 		0x37	//55
 
+#define PND         0x04
 #define PND0 		0x40	//64
 #define PND1 		0x41	//65
 #define PND2 		0x42	//66
@@ -39,6 +43,7 @@
 #define PND6 		0x46	//70
 #define PND7 		0x47	//71
 
+#define PNE         0x05
 #define PNE0 		0x50	//80
 #define PNE1 		0x51	//81
 #define PNE2 		0x52	//82
@@ -48,6 +53,7 @@
 #define PNE6 		0x56	//86
 #define PNE7 		0x57	//87
 
+#define PNF         0x06
 #define PNF0 		0x60	//96
 #define PNF1 		0x61	//97
 #define PNF2 		0x62	//98
@@ -57,6 +63,7 @@
 #define PNF6 		0x66	//102
 #define PNF7 		0x67	//103
 
+#define PNG         0x07
 #define PNG0 		0x70	//112
 #define PNG1 		0x71	//113
 #define PNG2 		0x72	//114

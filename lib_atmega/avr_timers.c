@@ -189,7 +189,7 @@ void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
 
         timer->mode.max_top      = MAX_TOP_0FF;
         if(wgm == WT8_CTC_OCRA || wgm == WT8_FAST_OCRA || wgm == WT8_PHASE_OCRA)
-            timer->mode.reg_xcrx = MAKEREG(TRM_OCRAH, TRM_OCRAL);
+            timer->mode.reg_xcrx = MAKEBITS(TRM_OCRAH, TRM_OCRAL);
         else
             timer->mode.reg_xcrx = 0;
 
@@ -209,9 +209,9 @@ void set_wgmode(struct __timer_base__* timer, uint8_t wgm)
             timer->mode.max_top = MAX_TOP_XCRX;
 
         if(wgm == WT16_CTC_OCRA || wgm == WT16_FAST_OCRA || wgm == WT16_PHASE_OCRA || wgm == WT16_FREQUENCY_OCRA)
-            timer->mode.reg_xcrx = MAKEREG(TRM_OCRAH, TRM_OCRAL);
+            timer->mode.reg_xcrx = MAKEBITS(TRM_OCRAH, TRM_OCRAL);
         else if(wgm == WT16_CTC_ICR || wgm == WT16_FAST_ICR || wgm == WT16_PHASE_ICR || wgm == WT16_FREQUENCY_ICR)
-            timer->mode.reg_xcrx = MAKEREG(TRM_ICRH, TRM_ICRL);
+            timer->mode.reg_xcrx = MAKEBITS(TRM_ICRH, TRM_ICRL);
         else
             timer->mode.reg_xcrx = 0;
 
@@ -444,7 +444,7 @@ boolean destroy_timer(h_timer htmr) {
 
         clear_subtimer(tmr);
 
-        tmr_table[tmr->class_name - 1] = NULL;
+        tmr_table[tmr->timer_name - 1] = NULL;
         free(tmr);
         htmr = NULL;
 
@@ -594,7 +594,7 @@ void set_frequency(h_timer const htmr, uint16_t freq) {
 
             set_presc(tmr, presc);
             if(tmr->mode.reg_xcrx != 0)
-                set_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOREG(tmr->mode.reg_xcrx)], xcrx);
+                set_registerx(tmrrgstrmap[tmr->timer_name - 1][HIBITS(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOBITS(tmr->mode.reg_xcrx)], xcrx);
         }
         else {
             set_presc(tmr, 0);
@@ -602,41 +602,30 @@ void set_frequency(h_timer const htmr, uint16_t freq) {
     }
 }
 
+void set_port_percent(struct __timer_base__* const tmr, uint8_t percent, uint8_t ocrxh, uint8_t ocrxl) {
+    uint16_t value = 0;
+
+    if(tmr->mode.reg_xcrx != 0)
+        value = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIBITS(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOBITS(tmr->mode.reg_xcrx)]);
+    else
+        value = tmr->mode.max_top;
+
+    value = (uint16_t)round((value / (float)(100)) * percent);
+    set_registerx(tmrrgstrmap[tmr->timer_name - 1][ocrxh], tmrrgstrmap[tmr->timer_name - 1][ocrxl], value);
+}
+
 void set_porta_percent(h_timer const htmr, uint8_t percent) {
     if(htmr != NULL) {
         struct __timer_base__* tmr = (struct __timer_base__*)htmr;
-        uint16_t valuea = 0;
 
-        if(tmr->mode.reg_xcrx != MAKEREG(TRM_OCRAH, TRM_OCRAL)) {       //проверка, не повлияет ли подстановка на TOP (TOP OCRA) таймера
-            if(tmr->mode.reg_xcrx != MAKEREG(TRM_ICRH, TRM_ICRL))
-                valuea = (uint16_t)round((tmr->mode.max_top / (float)(100)) * percent);
-            else {
-                uint16_t value_icr = 0;
-                value_icr = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOREG(tmr->mode.reg_xcrx)]);
-                valuea = (uint16_t)round((value_icr / (float)(100)) * percent);
-            }
-            set_registerx(tmrrgstrmap[tmr->timer_name - 1][TRM_OCRAH], tmrrgstrmap[tmr->timer_name][TRM_OCRAL], valuea);
-        }
+        if(tmr->mode.reg_xcrx != MAKEBITS(TRM_OCRAH, TRM_OCRAL))         //проверка, не повлияет ли подстановка на TOP (TOP OCRA) таймера
+            set_port_percent(tmr, percent, TRM_OCRAH, TRM_OCRAL);
     }
-}
-
-void set_port_percent(struct __timer_base__* const tmr, uint8_t percent, uint8_t ocrxh, uint8_t ocrxl) {
-    uint16_t top = 0;
-    uint16_t port_value = 0;
-
-    if(tmr->mode.reg_xcrx != 0)
-        top = get_registerx(tmrrgstrmap[tmr->timer_name - 1][HIREG(tmr->mode.reg_xcrx)], tmrrgstrmap[tmr->timer_name - 1][LOREG(tmr->mode.reg_xcrx)]);
-    else
-        top = tmr->mode.max_top;
-
-    port_value = (uint16_t)round((top / (float)(100)) * percent);
-    set_registerx(tmrrgstrmap[tmr->timer_name - 1][ocrxh], tmrrgstrmap[tmr->timer_name - 1][ocrxl], port_value);
 }
 
 void set_portb_percent(h_timer const htmr, uint8_t percent) {
-    if(htmr != NULL) {
+    if(htmr != NULL)
         set_port_percent((struct __timer_base__*)htmr, percent, TRM_OCRBH, TRM_OCRBL);
-    }
 }
 
 void set_portc_percent(h_timer const htmr, uint8_t percent) {

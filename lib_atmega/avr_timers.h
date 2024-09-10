@@ -8,10 +8,6 @@
 
 #define MAX_TMR 6
 
-#define HIREG(x)        ((((uint8_t)(x)) >> 4) & 0x0F)
-#define LOREG(x)        (((uint8_t)(x)) & 0x0F)
-#define MAKEREG(h, l)   (((((uint8_t)(h)) & 0x0F) << 4) | (((uint8_t)(l)) & 0x0F))
-
 //-----------------------------------
 // Timer class name
 //

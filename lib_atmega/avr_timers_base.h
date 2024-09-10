@@ -4,6 +4,9 @@
 #include <avr/interrupt.h>
 #include "base_avr.h"
 
+//-------------------------------
+// TCCR[0,5]A register bit number
+//
 #define COMNA1	0x07
 #define COMNA0	0x06
 #define COMNB1	0x05
@@ -12,7 +15,11 @@
 #define COMNC0	0x02
 #define WGMN1	0x01
 #define WGMN0	0x00
+//-------------------------------
 
+//-------------------------------
+// TCCR[0,5]B register bit number
+//
 #define FOCNA	0x07
 #define FOCNB	0x06
 #define ICNCN	FOCNA
@@ -22,12 +29,17 @@
 #define CSN2	0x02
 #define CSN1	0x01
 #define CSN0	0x00
+//-------------------------------
 
+//-------------------------------
+// TIMSK[0,5] register bit number
+//
 #define ICIEN 	0x05
 #define OCIENC	0x03
 #define OCIENB	0x02
 #define OCIENA	0x01
 #define TOIEN	0x00
+//-------------------------------
 
 extern uint8_t  get_comna(volatile const uint8_t* const tccrna);
 extern uint8_t  get_comnb(volatile const uint8_t* const tccrna);
